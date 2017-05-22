@@ -6,11 +6,11 @@ A multi-tenant and secure Kubernetes deployment enabled by OpenStack
 core components.
 
 Not another “Kubernetes on OpenStack” project
+=============================================
 
 Stackube is a standard upstream Kubernetes deployment with:
 
-1. Mixed container runtime of Docker (Linux container) and
-       HyperContainer (hypervisor-based container)
+1. Mixed container runtime of Docker (Linux container) and HyperContainer (hypervisor-based container)
 
 2. Keystone for tenant management
 
@@ -20,17 +20,18 @@ Stackube is a standard upstream Kubernetes deployment with:
 
 The main difference between Stackube with existing container service
 project in OpenStack foundation (e.g. Magnum) is: **Stackube works
-alongside OpenStack, not on OpenStack**. This means:
+alongside OpenStack, not on OpenStack**. 
+
+This means:
 
 1. Only standalone vanilla OpenStack components are required
 
-2. Traditional VMs are not required because HyperContainer will provide
-       hypervisor level isolation for containerized workloads.
+2. Traditional VMs are not required because HyperContainer will provide hypervisor level isolation for containerized workloads.
 
-3. All the components mentioned above are managed by Kubernetes plugin
-       API.
+3. All the components mentioned above are managed by Kubernetes plugin API.
 
 What‘s inside Stackube repo?
+============================
 
 1. Keystone RBAC plugin
 
@@ -48,38 +49,26 @@ Please note:
 
 1. Plugins above will be deployed as system Pod and DaemonSet.
 
-2. All other Kubernetes volumes are also supported in Stackube, while k8s
-       Cinder plugin with block device mode can provide better
-       performance in mixed runtime which will be preferred by default.
+2. All other Kubernetes volumes are also supported in Stackube, while k8s Cinder plugin with block device mode can provide better performance in mixed runtime which will be preferred by default.
 
 What’s the difference between other plugin projects?
+====================================================
 
 1. Kuryr
 
-   a. This is a Neutron network plugin for Docker network model, which
-          is not directly supported in Kubernetes. Kuryr can provide CNI
-          interface, but Stackube also requires tenant aware network
-          management which is not included in Kuryr.
+   a. This is a Neutron network plugin for Docker network model, which is not directly supported in Kubernetes. Kuryr can provide CNI interface, but Stackube also requires tenant aware network management which is not included in Kuryr.
 
 2. Fuxi
 
-   a. This is a Cinder volume plugin for Docker volume model, which is
-          not supported in latest CRI based Kubernetes (using k8s volume
-          plugin for now, and soon CSI). Also, Stackube prefers a
-          “block-device to Pod” mode in volume plugin when
-          HyperContainer runtime is enabled, which is not supported in
-          Fuxi.
+   a. This is a Cinder volume plugin for Docker volume model, which is not supported in latest CRI based Kubernetes (using k8s volume plugin for now, and soon CSI). Also, Stackube prefers a “block-device to Pod” mode in volume plugin when HyperContainer runtime is enabled, which is not supported in Fuxi.
 
 3. K8s-cloud-provider
 
-   a. This is a “Kubernetes on OpenStack” integration which requires
-          full functioning OpenStack deployment.
+   a. This is a “Kubernetes on OpenStack” integration which requires full functioning OpenStack deployment.
 
 4. Zun
 
-   a. This is a OpenStack API container service, while Stackube exposes
-          well-known Kubernetes API and does not require full
-          OpenStack deployment.
+   a. This is a OpenStack API container service, while Stackube exposes well-known Kubernetes API and does not require full OpenStack deployment.
 
 As summary, one distinguishable difference is that plugins in Stackube
 are designed to enable hard multi-tenancy in Kubernetes as a whole
@@ -99,6 +88,7 @@ But right now, we hope to keep everything as simple as possible and
 focus on the core components.
 
 A typical deployment workflow of Stackube
+=========================================
 
 On control nodes:
 
@@ -118,8 +108,7 @@ Deploy Stackube:
 
 1. *kubectl apply -f stackube.yaml*
 
-   a. This will deploy all Stackube plugins as Pods and DaemonSets to
-          the cluster
+   a. This will deploy all Stackube plugins as Pods and DaemonSets to the cluster
 
 (You can also deploy all these components in a single node)
 

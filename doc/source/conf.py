@@ -30,6 +30,7 @@ import os
 import subprocess
 import sys
 import warnings
+import oslosphinx
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -123,7 +124,8 @@ modindex_common_prefix = ['stackube.']
 # The theme to use for HTML and HTML Help pages.  Major themes that come with
 # Sphinx are currently 'default' and 'sphinxdoc'.
 # html_theme_path = ["."]
-# html_theme = '_theme'
+html_theme_path = [os.path.join(os.path.dirname(oslosphinx.__file__), 'theme')]
+html_theme = 'openstack'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the

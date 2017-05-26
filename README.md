@@ -5,6 +5,10 @@ fabric controller, to provision containers as the compute instance, along with o
 services (e.g. Cinder, Neutron). It supports multiple container runtime technologies, e.g. Docker,
 Hyper, and offers built-in soft / hard multi-tenancy (depending on the container runtime used).
 
+## Architecture
+
+![alt](doc/images/StackubeArchitecture.png)
+
 Stackube uses the Apache v2.0 license. All library dependencies allow for
 unrestricted distribution and deployment.
 

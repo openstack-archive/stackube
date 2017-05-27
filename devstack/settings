@@ -1,0 +1,15 @@
+STACKUBE_HOME=${STACKUBE_HOME:-$DEST/stackube}
+# Kubernetes master IP, should set to master IP for minions
+KUBERNETES_MASTER_IP=${KUBERNETES_MASTER_IP:-${SERVICE_HOST}}
+KUBERNETES_MASTER_PORT=${KUBERNETES_MASTER_PORT:-6443}
+# Kubeadm token, only for minions
+KUBEADM_TOKEN=${KUBEADM_TOKEN:-""}
+# The version of frakti
+FRAKTI_VERSION=${FRAKTI_VERSION:-"v0.2"}
+# Kubernetes CLUSTER CIDR
+CLUSTER_CIDR=${CLUSTER_CIDR:-"10.244.0.0/16"}
+# CNI Configurations
+# Brige network plugin is used now
+# TODO: replace network plugin with stackube-cni
+CONTAINER_CIDR=${CONTAINER_CIDR:-"10.244.1.0/24"}
+CNI_VERSION=${CNI_VERSION:-"v0.5.2"}

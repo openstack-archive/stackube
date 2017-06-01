@@ -1,0 +1,8 @@
+Code-Review+2: resouer <harryz@hyper.sh>
+Workflow+1: resouer <harryz@hyper.sh>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Thu, 01 Jun 2017 13:22:52 +0000
+Reviewed-on: https://review.openstack.org/469764
+Project: openstack/stackube
+Branch: refs/heads/master

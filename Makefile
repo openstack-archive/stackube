@@ -51,7 +51,7 @@ test-unit: test-flags
 
 .PHONY: test-flags
 test-flags:
-	cd $(DEST) && go test $(GOFLAGS) -tags '$(TAGS)' ./...
+	cd $(DEST) && go test $(GOFLAGS) -tags '$(TAGS)' $(go list ./... | grep -v vendor)
 
 # The above pipeline is required because gofmt always returns 0 and we need
 # to detect if any files are listed as having format problems.

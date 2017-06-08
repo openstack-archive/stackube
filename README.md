@@ -15,3 +15,5 @@ unrestricted distribution and deployment.
 * Source: <https://git.openstack.org/cgit/openstack/stackube>
 * Bugs: <https://bugs.launchpad.net/stackube>
 * Blueprints: <https://blueprints.launchpad.net/stackube>
+* Documentation: <https://stackube.readthedocs.io>
+

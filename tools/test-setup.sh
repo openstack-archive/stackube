@@ -3,7 +3,7 @@
 # Used in both CI jobs and locally
 #
 # Install the following tools:
-# * glide
+# * godep
 
 # Get OS
 case $(uname -s) in
@@ -31,24 +31,10 @@ case $(uname -s) in
         ;;
 esac
 
-case $OS in
-    darwin)
-        if which brew 1>/dev/null; then
-            if ! which glide 1>/dev/null; then
-                brew install glide
-            fi
-        else
-            echo "Homebrew not found, install Glide from source?"
-        fi
-        ;;
-    xenial)
-        APT_GET="DEBIAN_FRONTEND=noninteractive \
-            apt-get -q --option "Dpkg::Options::=--force-confold" \
-            --assume-yes"
-        if ! which add-apt-repository 1>/dev/null; then
-            sudo $APT_GET install software-properties-common
-        fi
-        sudo add-apt-repository --yes ppa:masterminds/glide && sudo apt-get update
-        sudo $APT_GET install glide
-        ;;
-esac
+if which go 1>/dev/null; then
+    if ! which go 1>/dev/null; then
+        go get -u -v github.com/tools/godep
+    fi
+else
+    echo "go not found, install golang from source?"
+fi

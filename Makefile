@@ -12,7 +12,7 @@ BASE_DIR := $(shell basename $(PWD))
 # Keep an existing GOPATH, make a private one if it is undefined
 GOPATH_DEFAULT := $(PWD)/.go
 export GOPATH ?= $(GOPATH_DEFAULT)
-PKG := $(shell awk  '/^package: / { print $$2 }' glide.yaml)
+PKG := git.openstack.org/openstack/stackube
 DEST := $(GOPATH)/src/$(PKG)
 
 GOFLAGS :=
@@ -27,19 +27,19 @@ all: build
 
 .PHONY: depend
 depend: work
-	cd $(DEST) && glide install
+	# cd $(DEST) && glide install
 
 .PHONY: depend-update
 depend-update: work
-	cd $(DEST) && glide update
+	# cd $(DEST) && glide update
 
 .PHONY: build
 build: depend
-	cd $(DEST) && go build $(GOFLAGS) -tags '$(TAGS)' -ldflags '$(LDFLAGS)'' ./...
+	cd $(DEST) && go build $(GOFLAGS) -tags '$(TAGS)' -ldflags '$(LDFLAGS)' ./...
 
 .PHONY: install
 install: depend
-	cd $(DEST) && go install $(GOFLAGS) -tags '$(TAGS)' -ldflags '$(LDFLAGS)'' ./...
+	cd $(DEST) && go install $(GOFLAGS) -tags '$(TAGS)' -ldflags '$(LDFLAGS)' ./...
 
 .PHONY: test
 test: test-unit

@@ -57,7 +57,7 @@ test-flags:
 # to detect if any files are listed as having format problems.
 .PHONY: fmt
 fmt: work
-	files=$$(cd $(DEST) && gofmt -l . | tee >(cat - >&2)); [ -z "$$files" ]
+	files=$$(cd $(DEST) && find . -not \(       \(         -wholename '*/vendor/*'       \) -prune     \) -name '*.go' | xargs gofmt -s -l | tee >(cat - >&2)); [ -z "$$files" ]
 
 .PHONY: fmtfix
 fmtfix: work

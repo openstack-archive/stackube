@@ -13,3 +13,11 @@ Stackube Scope
 
    stackube_scope_clarification
 
+Developer Guide
+================
+
+.. toctree::
+   :maxdepth: 2
+
+   setup
+

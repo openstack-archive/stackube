@@ -10,6 +10,7 @@ import (
 
 	"git.openstack.org/openstack/stackube/pkg/auth-controller/rbacmanager"
 	"git.openstack.org/openstack/stackube/pkg/auth-controller/tenant"
+	"git.openstack.org/openstack/stackube/pkg/network-controller"
 	"git.openstack.org/openstack/stackube/pkg/openstack"
 	"git.openstack.org/openstack/stackube/pkg/util"
 
@@ -23,12 +24,12 @@ var (
 )
 
 func init() {
-	flag.StringVar(&cfg.KubeConfig, "kubeconfig", "", "- path to kubeconfig")
-	flag.StringVar(&cfg.CloudConfig, "cloudconfig", "", "- path to cloudconfig")
+	flag.StringVar(&cfg.KubeConfig, "kubeconfig", "/etc/kubernetes/admin.conf", "- path to kubeconfig")
+	flag.StringVar(&cfg.CloudConfig, "cloudconfig", "/etc/kubestack.conf", "- path to cloudconfig")
 	flag.Parse()
 }
 
-func Main() int {
+func startAuthController() int {
 	// Verify client setting at the beginning and fail early if there are errors.
 	err := verifyClientSetting()
 	if err != nil {
@@ -51,8 +52,21 @@ func Main() int {
 	ctx, cancel := context.WithCancel(context.Background())
 	wg, ctx := errgroup.WithContext(ctx)
 
+	// start auth controllers in stackube
 	wg.Go(func() error { return tc.Run(ctx.Done()) })
 	wg.Go(func() error { return rm.Run(ctx.Done()) })
+
+	networkController, err := network.NewNetworkController(
+		cfg.KubeConfig,
+		cfg.CloudConfig,
+	)
+	if err != nil {
+		glog.Error(err)
+		return 1
+	}
+
+	// start network controller
+	wg.Go(func() error { return networkController.Run(ctx.Done()) })
 
 	term := make(chan os.Signal)
 	signal.Notify(term, os.Interrupt, syscall.SIGTERM)
@@ -89,5 +103,5 @@ func verifyClientSetting() error {
 }
 
 func main() {
-	os.Exit(Main())
+	os.Exit(startAuthController())
 }

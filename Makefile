@@ -19,6 +19,8 @@ GOFLAGS :=
 TAGS :=
 LDFLAGS :=
 
+OUTPUT := _output
+
 # Default target
 .PHONY: all
 all: build
@@ -35,7 +37,7 @@ depend-update: work
 
 .PHONY: build
 build: depend
-	cd $(DEST) && go build $(GOFLAGS) -tags '$(TAGS)' -ldflags '$(LDFLAGS)' ./...
+	cd $(DEST) && go build $(GOFLAGS) -a -o $(OUTPUT)/stackube-controller ./cmd/stackube-controller
 
 .PHONY: install
 install: depend

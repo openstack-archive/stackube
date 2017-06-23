@@ -21,3 +21,5 @@ Developer Guide
 
    setup
 
+   developer
+

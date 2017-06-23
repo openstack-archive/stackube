@@ -11,6 +11,21 @@ const (
 	TenantResourcePlural = "tenants"
 )
 
+// These are the valid phases of a network state.
+const (
+	// NetworkInitializing means the network is just accepted by system
+	NetworkInitializing = "Initializing"
+	// NetworkActive means the network is available for use in the system
+	NetworkActive = "Active"
+	// NetworkPending means the network is accepted by system, but it is still
+	// processing by network provider
+	NetworkPending = "Pending"
+	// NetworkFailed means the network is not available
+	NetworkFailed = "Failed"
+	// NetworkTerminating means the network is undergoing graceful termination
+	NetworkTerminating = "Terminating"
+)
+
 // Network describes a Neutron network.
 type Network struct {
 	// TypeMeta defines type of the object and its API schema version.
@@ -19,7 +34,7 @@ type Network struct {
 	metav1.ObjectMeta `json:"metadata"`
 
 	// Spec describes the behavior of a network.
-	Spec NetworkSpec
+	Spec NetworkSpec `json:"spec"`
 	// Status describes the network status.
 	Status NetworkStatus `json:"status,omitempty"`
 }
@@ -61,7 +76,7 @@ type Tenant struct {
 	metav1.ObjectMeta `json:"metadata"`
 
 	// Spec defines the behavior of a tenant.
-	Spec TenantSpec
+	Spec TenantSpec `json:"spec"`
 	// Status describes the tenant status.
 	Status TenantStatus `json:"status,omitempty"`
 }

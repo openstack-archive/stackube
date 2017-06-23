@@ -61,4 +61,3 @@ And configure local.conf:
 - Set `HOST_IP` to local host's IP
 - Set `SERVICE_HOST` to master's IP
 - Set `KUBEADM_TOKEN` to kubeadm token
-

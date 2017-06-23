@@ -7,6 +7,16 @@
 	],
 	"Deps": [
 		{
+			"ImportPath": "cloud.google.com/go/compute/metadata",
+			"Comment": "v0.1.0-115-g3b1ae45",
+			"Rev": "3b1ae45394a234c385be014e9a488f2bb6eef821"
+		},
+		{
+			"ImportPath": "cloud.google.com/go/internal",
+			"Comment": "v0.1.0-115-g3b1ae45",
+			"Rev": "3b1ae45394a234c385be014e9a488f2bb6eef821"
+		},
+		{
 			"ImportPath": "github.com/PuerkitoBio/purell",
 			"Comment": "v1.0.0",
 			"Rev": "8a290539e2e8629dbc4e6bad948158f790ec31f4"
@@ -117,6 +127,22 @@
 			"Rev": "5102b608e3e070dadf65b060362fe4052f0c5967"
 		},
 		{
+			"ImportPath": "github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/layer3/routers",
+			"Rev": "5102b608e3e070dadf65b060362fe4052f0c5967"
+		},
+		{
+			"ImportPath": "github.com/gophercloud/gophercloud/openstack/networking/v2/networks",
+			"Rev": "5102b608e3e070dadf65b060362fe4052f0c5967"
+		},
+		{
+			"ImportPath": "github.com/gophercloud/gophercloud/openstack/networking/v2/ports",
+			"Rev": "5102b608e3e070dadf65b060362fe4052f0c5967"
+		},
+		{
+			"ImportPath": "github.com/gophercloud/gophercloud/openstack/networking/v2/subnets",
+			"Rev": "5102b608e3e070dadf65b060362fe4052f0c5967"
+		},
+		{
 			"ImportPath": "github.com/gophercloud/gophercloud/openstack/utils",
 			"Rev": "5102b608e3e070dadf65b060362fe4052f0c5967"
 		},
@@ -158,6 +184,10 @@
 			"Rev": "d5b7844b561a7bc640052f1b935f7b800330d7e0"
 		},
 		{
+			"ImportPath": "github.com/pborman/uuid",
+			"Rev": "ca53cad383cad2479bbba7f7a1a05797ec1386e4"
+		},
+		{
 			"ImportPath": "github.com/spf13/pflag",
 			"Rev": "9ff6c6923cfffbcd502984b8e0c80539a94968b7"
 		},
@@ -171,6 +201,10 @@
 		},
 		{
 			"ImportPath": "golang.org/x/net/context",
+			"Rev": "f2499483f923065a842d38eb4c7f1927e6fc6e6d"
+		},
+		{
+			"ImportPath": "golang.org/x/net/context/ctxhttp",
 			"Rev": "f2499483f923065a842d38eb4c7f1927e6fc6e6d"
 		},
 		{
@@ -405,6 +439,10 @@
 		},
 		{
 			"ImportPath": "k8s.io/apimachinery/pkg/util/sets",
+			"Rev": "2de00c78cb6d6127fb51b9531c1b3def1cbcac8c"
+		},
+		{
+			"ImportPath": "k8s.io/apimachinery/pkg/util/uuid",
 			"Rev": "2de00c78cb6d6127fb51b9531c1b3def1cbcac8c"
 		},
 		{

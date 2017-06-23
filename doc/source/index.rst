@@ -21,3 +21,8 @@ Developer Guide
 
    setup
 
+.. toctree::
+   :maxdepth: 1
+
+   developer
+

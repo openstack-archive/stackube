@@ -7,6 +7,11 @@
 	],
 	"Deps": [
 		{
+			"ImportPath": "cloud.google.com/go/compute/metadata",
+			"Comment": "v0.9.0-9-g9d0d2cf",
+			"Rev": "9d0d2cf2897dfcd18a86e1666038caf1c38e77f8"
+		},
+		{
 			"ImportPath": "github.com/PuerkitoBio/purell",
 			"Comment": "v1.0.0",
 			"Rev": "8a290539e2e8629dbc4e6bad948158f790ec31f4"
@@ -94,35 +99,35 @@
 		},
 		{
 			"ImportPath": "github.com/gophercloud/gophercloud",
-			"Rev": "63ea72a718cc3cf0853e41f66003d00456d194a6"
+			"Rev": "5102b608e3e070dadf65b060362fe4052f0c5967"
 		},
 		{
 			"ImportPath": "github.com/gophercloud/gophercloud/openstack",
-			"Rev": "63ea72a718cc3cf0853e41f66003d00456d194a6"
+			"Rev": "5102b608e3e070dadf65b060362fe4052f0c5967"
 		},
 		{
 			"ImportPath": "github.com/gophercloud/gophercloud/openstack/identity/v2/tenants",
-			"Rev": "63ea72a718cc3cf0853e41f66003d00456d194a6"
+			"Rev": "5102b608e3e070dadf65b060362fe4052f0c5967"
 		},
 		{
 			"ImportPath": "github.com/gophercloud/gophercloud/openstack/identity/v2/tokens",
-			"Rev": "63ea72a718cc3cf0853e41f66003d00456d194a6"
+			"Rev": "5102b608e3e070dadf65b060362fe4052f0c5967"
 		},
 		{
 			"ImportPath": "github.com/gophercloud/gophercloud/openstack/identity/v2/users",
-			"Rev": "63ea72a718cc3cf0853e41f66003d00456d194a6"
+			"Rev": "5102b608e3e070dadf65b060362fe4052f0c5967"
 		},
 		{
 			"ImportPath": "github.com/gophercloud/gophercloud/openstack/identity/v3/tokens",
-			"Rev": "63ea72a718cc3cf0853e41f66003d00456d194a6"
+			"Rev": "5102b608e3e070dadf65b060362fe4052f0c5967"
 		},
 		{
 			"ImportPath": "github.com/gophercloud/gophercloud/openstack/utils",
-			"Rev": "63ea72a718cc3cf0853e41f66003d00456d194a6"
+			"Rev": "5102b608e3e070dadf65b060362fe4052f0c5967"
 		},
 		{
 			"ImportPath": "github.com/gophercloud/gophercloud/pagination",
-			"Rev": "63ea72a718cc3cf0853e41f66003d00456d194a6"
+			"Rev": "5102b608e3e070dadf65b060362fe4052f0c5967"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/golang-lru",

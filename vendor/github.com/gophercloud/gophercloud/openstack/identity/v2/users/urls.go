@@ -4,7 +4,7 @@ import "github.com/gophercloud/gophercloud"
 
 const (
 	tenantPath = "tenants"
-	userPath   = "users"
+	userPath   = "v2.0/users"
 	rolePath   = "roles"
 )
 
@@ -18,4 +18,8 @@ func rootURL(c *gophercloud.ServiceClient) string {
 
 func listRolesURL(c *gophercloud.ServiceClient, tenantID, userID string) string {
 	return c.ServiceURL(tenantPath, tenantID, userPath, userID, rolePath)
+}
+
+func listUsersURL(c *gophercloud.ServiceClient, tenantID string) string {
+	return c.ServiceURL(tenantPath, tenantID, "users")
 }

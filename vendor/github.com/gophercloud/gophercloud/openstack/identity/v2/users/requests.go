@@ -26,6 +26,8 @@ type CommonOpts struct {
 	Enabled *bool `json:"enabled,omitempty"`
 	// The email address of this user.
 	Email string `json:"email,omitempty"`
+	// Password is the password of the new user.
+	Password string `json:"password,omitempty"`
 }
 
 // CreateOpts represents the options needed when creating new users.
@@ -102,5 +104,12 @@ func Delete(client *gophercloud.ServiceClient, id string) (r DeleteResult) {
 func ListRoles(client *gophercloud.ServiceClient, tenantID, userID string) pagination.Pager {
 	return pagination.NewPager(client, listRolesURL(client, tenantID, userID), func(r pagination.PageResult) pagination.Page {
 		return RolePage{pagination.SinglePageBase(r)}
+	})
+}
+
+// ListUsers requests details on a single tenant's users by tenantID.
+func ListUsers(client *gophercloud.ServiceClient, tenantID string) pagination.Pager {
+	return pagination.NewPager(client, listUsersURL(client, tenantID), func(r pagination.PageResult) pagination.Page {
+		return UserPage{pagination.SinglePageBase(r)}
 	})
 }

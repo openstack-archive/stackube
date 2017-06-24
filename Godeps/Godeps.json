@@ -94,35 +94,35 @@
 		},
 		{
 			"ImportPath": "github.com/gophercloud/gophercloud",
-			"Rev": "63ea72a718cc3cf0853e41f66003d00456d194a6"
+			"Rev": "5102b608e3e070dadf65b060362fe4052f0c5967"
 		},
 		{
 			"ImportPath": "github.com/gophercloud/gophercloud/openstack",
-			"Rev": "63ea72a718cc3cf0853e41f66003d00456d194a6"
+			"Rev": "5102b608e3e070dadf65b060362fe4052f0c5967"
 		},
 		{
 			"ImportPath": "github.com/gophercloud/gophercloud/openstack/identity/v2/tenants",
-			"Rev": "63ea72a718cc3cf0853e41f66003d00456d194a6"
+			"Rev": "5102b608e3e070dadf65b060362fe4052f0c5967"
 		},
 		{
 			"ImportPath": "github.com/gophercloud/gophercloud/openstack/identity/v2/tokens",
-			"Rev": "63ea72a718cc3cf0853e41f66003d00456d194a6"
+			"Rev": "5102b608e3e070dadf65b060362fe4052f0c5967"
 		},
 		{
 			"ImportPath": "github.com/gophercloud/gophercloud/openstack/identity/v2/users",
-			"Rev": "63ea72a718cc3cf0853e41f66003d00456d194a6"
+			"Rev": "5102b608e3e070dadf65b060362fe4052f0c5967"
 		},
 		{
 			"ImportPath": "github.com/gophercloud/gophercloud/openstack/identity/v3/tokens",
-			"Rev": "63ea72a718cc3cf0853e41f66003d00456d194a6"
+			"Rev": "5102b608e3e070dadf65b060362fe4052f0c5967"
 		},
 		{
 			"ImportPath": "github.com/gophercloud/gophercloud/openstack/utils",
-			"Rev": "63ea72a718cc3cf0853e41f66003d00456d194a6"
+			"Rev": "5102b608e3e070dadf65b060362fe4052f0c5967"
 		},
 		{
 			"ImportPath": "github.com/gophercloud/gophercloud/pagination",
-			"Rev": "63ea72a718cc3cf0853e41f66003d00456d194a6"
+			"Rev": "5102b608e3e070dadf65b060362fe4052f0c5967"
 		},
 		{
 			"ImportPath": "github.com/hashicorp/golang-lru",
@@ -174,10 +174,6 @@
 			"Rev": "f2499483f923065a842d38eb4c7f1927e6fc6e6d"
 		},
 		{
-			"ImportPath": "golang.org/x/net/context/ctxhttp",
-			"Rev": "f2499483f923065a842d38eb4c7f1927e6fc6e6d"
-		},
-		{
 			"ImportPath": "golang.org/x/net/http2",
 			"Rev": "f2499483f923065a842d38eb4c7f1927e6fc6e6d"
 		},
@@ -192,26 +188,6 @@
 		{
 			"ImportPath": "golang.org/x/net/lex/httplex",
 			"Rev": "f2499483f923065a842d38eb4c7f1927e6fc6e6d"
-		},
-		{
-			"ImportPath": "golang.org/x/oauth2",
-			"Rev": "a6bd8cefa1811bd24b86f8902872e4e8225f74c4"
-		},
-		{
-			"ImportPath": "golang.org/x/oauth2/google",
-			"Rev": "a6bd8cefa1811bd24b86f8902872e4e8225f74c4"
-		},
-		{
-			"ImportPath": "golang.org/x/oauth2/internal",
-			"Rev": "a6bd8cefa1811bd24b86f8902872e4e8225f74c4"
-		},
-		{
-			"ImportPath": "golang.org/x/oauth2/jws",
-			"Rev": "a6bd8cefa1811bd24b86f8902872e4e8225f74c4"
-		},
-		{
-			"ImportPath": "golang.org/x/oauth2/jwt",
-			"Rev": "a6bd8cefa1811bd24b86f8902872e4e8225f74c4"
 		},
 		{
 			"ImportPath": "golang.org/x/sync/errgroup",

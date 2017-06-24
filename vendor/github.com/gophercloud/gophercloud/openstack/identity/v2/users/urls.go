@@ -4,7 +4,7 @@ import "github.com/gophercloud/gophercloud"
 
 const (
 	tenantPath = "tenants"
-	userPath   = "v2.0/users"
+	userPath   = "users"
 	rolePath   = "roles"
 )
 

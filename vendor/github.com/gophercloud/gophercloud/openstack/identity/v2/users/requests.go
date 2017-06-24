@@ -26,8 +26,6 @@ type CommonOpts struct {
 	Enabled *bool `json:"enabled,omitempty"`
 	// The email address of this user.
 	Email string `json:"email,omitempty"`
-	// Password is the password of the new user.
-	Password string `json:"password,omitempty"`
 }
 
 // CreateOpts represents the options needed when creating new users.

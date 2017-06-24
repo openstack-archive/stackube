@@ -31,7 +31,7 @@ func List(client *gophercloud.ServiceClient, opts *ListOpts) pagination.Pager {
 // CreateOpts represents the options needed when creating new tenant.
 type CreateOpts struct {
 	// Name is the name of the tenant.
-	Name string `json:"name,required"`
+	Name string `json:"name" required:"true"`
 	// Description is the description of the tenant.
 	Description string `json:"description,omitempty"`
 	// Enabled sets the tenant status to enabled or disabled.
@@ -61,7 +61,7 @@ func Create(client *gophercloud.ServiceClient, opts CreateOptsBuilder) (r Create
 	return
 }
 
-// Get requests details on a single tenant, either by ID.
+// Get requests details on a single tenant by ID.
 func Get(client *gophercloud.ServiceClient, id string) (r GetResult) {
 	_, r.Err = client.Get(getURL(client, id), &r.Body, nil)
 	return
@@ -87,7 +87,7 @@ func (opts UpdateOpts) ToTenantUpdateMap() (map[string]interface{}, error) {
 	return gophercloud.BuildRequestBody(opts, "tenant")
 }
 
-// Update is the operation responsible for updating exist tenants by their UUID.
+// Update is the operation responsible for updating exist tenants by their TenantID.
 func Update(client *gophercloud.ServiceClient, id string, opts UpdateOptsBuilder) (r UpdateResult) {
 	b, err := opts.ToTenantUpdateMap()
 	if err != nil {

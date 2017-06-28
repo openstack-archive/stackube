@@ -1,0 +1,10 @@
+Code-Review+2: resouer <harryz@hyper.sh>
+Workflow+1: resouer <harryz@hyper.sh>
+Code-Review+2: Pengfei Ni <feiskyer@gmail.com>
+Workflow+1: Pengfei Ni <feiskyer@gmail.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Wed, 28 Jun 2017 11:27:53 +0000
+Reviewed-on: https://review.openstack.org/478203
+Project: openstack/stackube
+Branch: refs/heads/master

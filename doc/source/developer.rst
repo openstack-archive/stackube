@@ -27,7 +27,16 @@ Start
 
 ::
 
-   ./_output/stackube-controller -v=5 -alsologtostderr=true -logtostderr=true
+   cat >/etc/stackube.conf <<EOF
+   [Global]
+   auth-url=https://x.x.x.x/identity_admin/v2.0
+   username=admin
+   password=password
+   tenant-name=admin
+   region=RegionOne
+   ext-net-id=x-x-x-x-x
+   EOF
+   ./_output/stackube-controller --v=5
 
 
 

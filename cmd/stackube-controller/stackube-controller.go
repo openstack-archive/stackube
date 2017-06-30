@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"os"
 	"os/signal"
@@ -15,38 +14,29 @@ import (
 	"git.openstack.org/openstack/stackube/pkg/util"
 
 	"github.com/golang/glog"
+	"github.com/spf13/pflag"
 	"golang.org/x/sync/errgroup"
 	"k8s.io/client-go/kubernetes"
 )
 
 var (
-	cfg tenant.Config
+	kubeconfig = pflag.String("kubeconfig", "/etc/kubernetes/admin.conf",
+		"path to kubernetes admin config file")
+	cloudconfig = pflag.String("cloudconfig", "/etc/stackube.conf",
+		"path to stackube config file")
 )
 
-func init() {
-	flag.StringVar(&cfg.KubeConfig, "kubeconfig", "/etc/kubernetes/admin.conf", "- path to kubeconfig")
-	flag.StringVar(&cfg.CloudConfig, "cloudconfig", "/etc/kubestack.conf", "- path to cloudconfig")
-	flag.Parse()
-}
-
-func startControllers() int {
-	// Verify client setting at the beginning and fail early if there are errors.
-	err := verifyClientSetting()
-	if err != nil {
-		glog.Error(err)
-		return 1
-	}
+func startControllers(cfg tenant.Config) error {
 	// Creates a new tenant controller
 	tc, err := tenant.New(cfg)
 	if err != nil {
-		glog.Error(err)
-		return 1
+		return err
 	}
+
 	// Creates a new RBAC controller
 	rm, err := rbacmanager.New(cfg)
 	if err != nil {
-		glog.Error(err)
-		return 1
+		return err
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -61,8 +51,7 @@ func startControllers() int {
 		cfg.CloudConfig,
 	)
 	if err != nil {
-		glog.Error(err)
-		return 1
+		return err
 	}
 
 	// start network controller
@@ -80,28 +69,48 @@ func startControllers() int {
 	cancel()
 	if err := wg.Wait(); err != nil {
 		glog.Errorf("Unhandled error received: %v", err)
-		return 1
+		return err
 	}
 
-	return 0
+	return nil
 }
 
 func verifyClientSetting() error {
-	config, err := util.NewClusterConfig(cfg.KubeConfig)
+	config, err := util.NewClusterConfig(*kubeconfig)
 	if err != nil {
-		return fmt.Errorf("Init cluster config failed: %v", err)
+		return fmt.Errorf("Init kubernetes cluster failed: %v", err)
 	}
+
 	_, err = kubernetes.NewForConfig(config)
 	if err != nil {
 		return fmt.Errorf("Init kubernetes clientset failed: %v", err)
 	}
-	_, err = openstack.NewClient(cfg.CloudConfig)
+
+	_, err = openstack.NewClient(*cloudconfig)
 	if err != nil {
 		return fmt.Errorf("Init openstack client failed: %v", err)
 	}
+
 	return nil
 }
 
 func main() {
-	os.Exit(startControllers())
+	util.InitFlags()
+	util.InitLogs()
+	defer util.FlushLogs()
+
+	// Verify client setting at the beginning and fail early if there are errors.
+	err := verifyClientSetting()
+	if err != nil {
+		glog.Fatal(err)
+	}
+
+	// Start stackube controllers.
+	cfg := tenant.Config{
+		KubeConfig:  *kubeconfig,
+		CloudConfig: *cloudconfig,
+	}
+	if err := startControllers(cfg); err != nil {
+		glog.Fatal(err)
+	}
 }

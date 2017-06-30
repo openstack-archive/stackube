@@ -16,6 +16,7 @@ import (
 	"github.com/gophercloud/gophercloud/pagination"
 
 	"fmt"
+
 	drivertypes "git.openstack.org/openstack/stackube/pkg/openstack/types"
 	gcfg "gopkg.in/gcfg.v1"
 )
@@ -223,7 +224,7 @@ func (c *Client) DeleteAllUsersOnTenant(tenantName string) error {
 				glog.Errorf("Delete openstack user %s error: %v", u.Name, err)
 				return false, err
 			}
-			glog.V(4).Infof("User %s deleted: %v", u.Name, res)
+			glog.V(4).Infof("User %s deleted", u.Name)
 		}
 		return true, nil
 	})

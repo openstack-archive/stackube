@@ -15,6 +15,7 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/subnets"
 	"github.com/gophercloud/gophercloud/pagination"
 
+	"fmt"
 	drivertypes "git.openstack.org/openstack/stackube/pkg/openstack/types"
 	gcfg "gopkg.in/gcfg.v1"
 )
@@ -77,6 +78,12 @@ func NewClient(config string) (*Client, error) {
 		}
 	} else {
 		opts = toAuthOptions(cfg)
+	}
+
+	glog.V(1).Infof("Initializing openstack client with config %v", cfg)
+
+	if cfg.Global.ExtNetID == "" {
+		return nil, fmt.Errorf("external network ID not set")
 	}
 
 	provider, err := openstack.AuthenticatedClient(opts)

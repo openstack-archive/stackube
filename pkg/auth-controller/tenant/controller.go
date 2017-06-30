@@ -13,7 +13,7 @@ import (
 
 	"github.com/golang/glog"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	apimetav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	apismetav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api"
@@ -217,8 +217,8 @@ func (c *TenantController) sync(key string) error {
 	if !exists {
 		// Delete tenant related resources in k8s
 		tenant := strings.Split(key, "/")
-		deleteOptions := &apimetav1.DeleteOptions{
-			TypeMeta: apimetav1.TypeMeta{
+		deleteOptions := &apismetav1.DeleteOptions{
+			TypeMeta: apismetav1.TypeMeta{
 				Kind:       "ClusterRoleBinding",
 				APIVersion: "rbac.authorization.k8s.io/v1beta1",
 			},
@@ -229,6 +229,12 @@ func (c *TenantController) sync(key string) error {
 			return err
 		}
 		glog.V(4).Infof("Deleted ClusterRoleBinding %s", tenant[1])
+		//Delete namespace
+		err = c.deleteNamespace(tenant[1])
+		if err != nil {
+			return err
+		}
+		glog.V(4).Infof("Deleted namespace %s", tenant[1])
 		// Delete all users on a tenant
 		err = c.osclient.DeleteAllUsersOnTenant(tenant[1])
 		if err != nil {
@@ -256,7 +262,7 @@ func (c *TenantController) sync(key string) error {
 func (c *TenantController) createTPRs() error {
 	tprs := []*extensionsobj.ThirdPartyResource{
 		{
-			ObjectMeta: apimetav1.ObjectMeta{
+			ObjectMeta: apismetav1.ObjectMeta{
 				Name: tprTenant,
 			},
 			Versions: []extensionsobj.APIVersion{
@@ -311,7 +317,7 @@ func (c *TenantController) syncTenant(tenant *v1.Tenant) error {
 	}
 
 	// Create namespace which name is the same as the tenant's name
-	err = c.createNamespce(tenant.Name)
+	err = c.createNamespace(tenant.Name)
 	if err != nil {
 		return err
 	}
@@ -330,14 +336,23 @@ func (c *TenantController) createClusterRoles() error {
 	return nil
 }
 
-func (c *TenantController) createNamespce(namespace string) error {
+func (c *TenantController) createNamespace(namespace string) error {
 	_, err := c.kclient.CoreV1().Namespaces().Create(&apiv1.Namespace{
-		ObjectMeta: apimetav1.ObjectMeta{
+		ObjectMeta: apismetav1.ObjectMeta{
 			Name: namespace,
 		},
 	})
 	if err != nil && !apierrors.IsAlreadyExists(err) {
 		glog.Errorf("Failed create namespace %s: %v", namespace, err)
+		return err
+	}
+	return nil
+}
+
+func (c *TenantController) deleteNamespace(namespace string) error {
+	err := c.kclient.CoreV1().Namespaces().Delete(namespace, apismetav1.NewDeleteOptions(0))
+	if err != nil {
+		glog.Errorf("Failed delete namespace %s: %v", namespace, err)
 		return err
 	}
 	return nil

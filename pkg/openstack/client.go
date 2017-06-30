@@ -165,14 +165,18 @@ func (c *Client) CreateTenant(tenantName string) (string, error) {
 
 func (c *Client) DeleteTenant(tenantName string) error {
 	return tenants.List(c.Identity, nil).EachPage(func(page pagination.Page) (bool, error) {
-		tenantList, err1 := tenants.ExtractTenants(page)
-		if err1 != nil {
-			return false, err1
+		tenantList, err := tenants.ExtractTenants(page)
+		if err != nil {
+			return false, err
 		}
 		for _, t := range tenantList {
 			if t.Name == tenantName {
-				re := tenants.Delete(c.Identity, t.ID)
-				glog.V(4).Infof("Tenant %s deleted: %v", tenantName, re)
+				err := tenants.Delete(c.Identity, t.ID).ExtractErr()
+				if err != nil {
+					glog.Errorf("Delete openstack tenant %s error: %v", tenantName, err)
+					return false, err
+				}
+				glog.V(4).Infof("Tenant %s deleted", tenantName)
 				break
 			}
 		}
@@ -201,17 +205,18 @@ func (c *Client) DeleteAllUsersOnTenant(tenantName string) error {
 	if err != nil {
 		return nil
 	}
-	// TODO the users.List method returned users have empty TenantID option
-	return users.List(c.Identity).EachPage(func(page pagination.Page) (bool, error) {
+	return users.ListUsers(c.Identity, tenantID).EachPage(func(page pagination.Page) (bool, error) {
 		usersList, err := users.ExtractUsers(page)
 		if err != nil {
 			return false, err
 		}
 		for _, u := range usersList {
-			if u.TenantID == tenantID {
-				res := users.Delete(c.Identity, u.ID)
-				glog.V(4).Infof("User %s deleted: %v", u.Name, res)
+			res := users.Delete(c.Identity, u.ID)
+			if res.Err != nil {
+				glog.Errorf("Delete openstack user %s error: %v", u.Name, err)
+				return false, err
 			}
+			glog.V(4).Infof("User %s deleted: %v", u.Name, res)
 		}
 		return true, nil
 	})

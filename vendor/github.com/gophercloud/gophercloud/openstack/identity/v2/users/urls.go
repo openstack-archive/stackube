@@ -3,7 +3,7 @@ package users
 import "github.com/gophercloud/gophercloud"
 
 const (
-	tenantPath = "tenants"
+	tenantPath = "v2.0/tenants"
 	userPath   = "v2.0/users"
 	rolePath   = "roles"
 )

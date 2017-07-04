@@ -2,41 +2,46 @@ package tenant
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 	"time"
 
 	"git.openstack.org/openstack/stackube/pkg/apis/v1"
+	crv1 "git.openstack.org/openstack/stackube/pkg/apis/v1"
 	"git.openstack.org/openstack/stackube/pkg/auth-controller/client/auth"
 	"git.openstack.org/openstack/stackube/pkg/auth-controller/rbacmanager/rbac"
 	"git.openstack.org/openstack/stackube/pkg/openstack"
 	"git.openstack.org/openstack/stackube/pkg/util"
 
 	"github.com/golang/glog"
+	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	apismetav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api"
 	apiv1 "k8s.io/client-go/pkg/api/v1"
-	extensionsobj "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 )
 
-const (
-	tprTenant = "tenant." + auth.TPRGroup
+var (
+	// NOTE: we should always use crv1.TenantResourcePlural.CRDGroup as CRD name
+	crdTenant = crv1.TenantResourcePlural + "." + auth.CRDGroup
 
 	resyncPeriod = 5 * time.Minute
 )
 
 // TenantController manages lify cycle of Tenant.
 type TenantController struct {
-	kclient  *kubernetes.Clientset
-	tclient  *auth.AuthClient
-	osclient *openstack.Client
-	tenInf   cache.SharedIndexInformer
-	queue    workqueue.RateLimitingInterface
-	config   Config
+	kclient   *kubernetes.Clientset
+	crdclient *apiextensionsclient.Clientset
+	tclient   *auth.AuthClient
+	osclient  *openstack.Client
+	tenInf    cache.SharedIndexInformer
+	queue     workqueue.RateLimitingInterface
+	config    Config
 }
 
 // Config defines configuration parameters for the TenantController.
@@ -59,6 +64,10 @@ func New(conf Config) (*TenantController, error) {
 	if err != nil {
 		return nil, fmt.Errorf("init restclient for tenant failed: %v", err)
 	}
+	crdclient, err := apiextensionsclient.NewForConfig(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("init CRD client failed: %v", err)
+	}
 
 	openStackClient, err := openstack.NewClient(conf.CloudConfig)
 	if err != nil {
@@ -66,11 +75,12 @@ func New(conf Config) (*TenantController, error) {
 	}
 
 	c := &TenantController{
-		kclient:  client,
-		tclient:  tclient,
-		osclient: openStackClient,
-		queue:    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "tenant"),
-		config:   conf,
+		crdclient: crdclient,
+		kclient:   client,
+		tclient:   tclient,
+		osclient:  openStackClient,
+		queue:     workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "tenant"),
+		config:    conf,
 	}
 
 	c.tenInf = cache.NewSharedIndexInformer(
@@ -101,9 +111,11 @@ func (c *TenantController) Run(stopc <-chan struct{}) error {
 			return
 		}
 		glog.V(4).Infof("Established connection established, cluster-version: %s", v)
-		// Create TPRs
-		if err := c.createTPRs(); err != nil {
-			errChan <- fmt.Errorf("creating TPRs failed: %v", err)
+		// Create CRD
+		if _, err := c.createTenantCRD(c.crdclient); err != nil {
+			if err != nil && !apierrors.IsAlreadyExists(err) {
+				errChan <- fmt.Errorf("creating tenant CRD failed: %v", err)
+			}
 			return
 		}
 		// Create clusterRole
@@ -120,7 +132,7 @@ func (c *TenantController) Run(stopc <-chan struct{}) error {
 		if err != nil {
 			return err
 		}
-		glog.V(4).Info("TPR API endpoints ready")
+		glog.V(4).Info("CRD API endpoints ready")
 	case <-stopc:
 		return nil
 	}
@@ -259,33 +271,32 @@ func (c *TenantController) sync(key string) error {
 	return nil
 }
 
-func (c *TenantController) createTPRs() error {
-	tprs := []*extensionsobj.ThirdPartyResource{
-		{
-			ObjectMeta: apismetav1.ObjectMeta{
-				Name: tprTenant,
+func (c *TenantController) createTenantCRD(clientset apiextensionsclient.Interface) (*apiextensionsv1beta1.CustomResourceDefinition, error) {
+	crd := &apiextensionsv1beta1.CustomResourceDefinition{
+		ObjectMeta: apismetav1.ObjectMeta{
+			Name: crdTenant,
+		},
+		Spec: apiextensionsv1beta1.CustomResourceDefinitionSpec{
+			Group:   crv1.GroupName,
+			Version: crv1.SchemeGroupVersion.Version,
+			Scope:   apiextensionsv1beta1.NamespaceScoped,
+			Names: apiextensionsv1beta1.CustomResourceDefinitionNames{
+				Plural: crv1.TenantResourcePlural,
+				Kind:   reflect.TypeOf(crv1.Tenant{}).Name(),
 			},
-			Versions: []extensionsobj.APIVersion{
-				{Name: auth.TPRVersion},
-			},
-			Description: "Tpr for tenant",
 		},
 	}
-	tprClient := c.kclient.Extensions().ThirdPartyResources()
-
-	for _, tpr := range tprs {
-		if _, err := tprClient.Create(tpr); err != nil && !apierrors.IsAlreadyExists(err) {
-			return err
-		}
-		glog.V(4).Infof("Created TPR %s", tpr.Name)
-	}
-
-	// We have to wait for the TPRs to be ready. Otherwise the initial watch may fail.
-	err := util.WaitForTPRReady(c.kclient.CoreV1().RESTClient(), auth.TPRGroup, auth.TPRVersion, auth.TPRTenantName)
+	_, err := clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Create(crd)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+
+	// wait for CRD being established
+	if err = util.WaitForCRDReady(clientset, crdTenant); err != nil {
+		return nil, err
+	} else {
+		return crd, nil
+	}
 }
 
 func (c *TenantController) syncTenant(tenant *v1.Tenant) error {

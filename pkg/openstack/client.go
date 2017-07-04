@@ -72,7 +72,7 @@ func NewClient(config string) (*Client, error) {
 	var opts gophercloud.AuthOptions
 	cfg, err := readConfig(config)
 	if err != nil {
-		glog.V(0).Info("Failed read cloudconfig: %v. Starting init openstackclient form env", err)
+		glog.V(0).Infof("Failed read cloudconfig: %v. Starting init openstackclient from env", err)
 		opts, err = openstack.AuthOptionsFromEnv()
 		if err != nil {
 			return nil, err
@@ -323,7 +323,7 @@ func (os *Client) GetNetworkByID(networkID string) (*drivertypes.Network, error)
 func (os *Client) GetNetwork(networkName string) (*drivertypes.Network, error) {
 	osNetwork, err := os.getOpenStackNetworkByName(networkName)
 	if err != nil {
-		glog.Warningf("failed to fetch openstack network by name: %v failure: %v", networkName, err)
+		glog.Warningf("try to fetch openstack network by name: %v but failed: %v", networkName, err)
 		return nil, err
 	}
 

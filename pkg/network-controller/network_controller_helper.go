@@ -5,7 +5,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/util/wait"
 
-	tprv1 "git.openstack.org/openstack/stackube/pkg/apis/v1"
+	crv1 "git.openstack.org/openstack/stackube/pkg/apis/v1"
 	drivertypes "git.openstack.org/openstack/stackube/pkg/openstack/types"
 	"git.openstack.org/openstack/stackube/pkg/util"
 
@@ -17,7 +17,7 @@ const (
 	subnetSuffix  = "subnet"
 )
 
-func (c *NetworkController) addNetworkToNeutron(kubeNetwork *tprv1.Network) {
+func (c *NetworkController) addNetworkToNeutron(kubeNetwork *crv1.Network) {
 	// The tenant name is the same with namespace, let's get tenantID by tenantName
 	tenantName := kubeNetwork.GetNamespace()
 	tenantID, err := c.Driver.GetTenantIDFromName(tenantName)
@@ -54,7 +54,7 @@ func (c *NetworkController) addNetworkToNeutron(kubeNetwork *tprv1.Network) {
 		},
 	}
 
-	newNetworkStatus := tprv1.NetworkActive
+	newNetworkStatus := crv1.NetworkActive
 
 	glog.V(4).Infof("[NetworkController]: adding network %s", driverNetwork.Name)
 
@@ -64,8 +64,8 @@ func (c *NetworkController) addNetworkToNeutron(kubeNetwork *tprv1.Network) {
 		glog.Errorf("[NetworkController]: check tenantID failed: %v", err)
 	}
 	if !check {
-		glog.Warningf("[NetworkController]: tenantID %s doesn't exit in network provider", driverNetwork.TenantID)
-		kubeNetwork.Status.State = tprv1.NetworkFailed
+		glog.Warningf("[NetworkController]: tenantID %s doesn't exist in network provider", driverNetwork.TenantID)
+		kubeNetwork.Status.State = crv1.NetworkFailed
 		c.updateNetwork(kubeNetwork)
 		return
 	}
@@ -75,12 +75,12 @@ func (c *NetworkController) addNetworkToNeutron(kubeNetwork *tprv1.Network) {
 		_, err := c.Driver.GetNetworkByID(kubeNetwork.Spec.NetworkID)
 		if err != nil {
 			glog.Warningf("[NetworkController]: network %s doesn't exit in network provider", kubeNetwork.Spec.NetworkID)
-			newNetworkStatus = tprv1.NetworkFailed
+			newNetworkStatus = crv1.NetworkFailed
 		}
 	} else {
 		if len(driverNetwork.Subnets) == 0 {
 			glog.Warningf("[NetworkController]: subnets of %s is null", driverNetwork.Name)
-			newNetworkStatus = tprv1.NetworkFailed
+			newNetworkStatus = crv1.NetworkFailed
 		} else {
 			// Check if provider network has already created
 			_, err := c.Driver.GetNetwork(networkName)
@@ -91,11 +91,11 @@ func (c *NetworkController) addNetworkToNeutron(kubeNetwork *tprv1.Network) {
 				err := c.Driver.CreateNetwork(driverNetwork)
 				if err != nil {
 					glog.Warningf("[NetworkController]: create network %s failed: %v", driverNetwork.Name, err)
-					newNetworkStatus = tprv1.NetworkFailed
+					newNetworkStatus = crv1.NetworkFailed
 				}
 			} else {
 				glog.Warningf("[NetworkController]: get network failed: %v", err)
-				newNetworkStatus = tprv1.NetworkFailed
+				newNetworkStatus = crv1.NetworkFailed
 			}
 		}
 	}
@@ -104,12 +104,12 @@ func (c *NetworkController) addNetworkToNeutron(kubeNetwork *tprv1.Network) {
 	c.updateNetwork(kubeNetwork)
 }
 
-// updateNetwork updates Network TPR object by given object
-func (c *NetworkController) updateNetwork(network *tprv1.Network) {
+// updateNetwork updates Network CRD object by given object
+func (c *NetworkController) updateNetwork(network *crv1.Network) {
 	err := c.NetworkClient.Put().
 		Name(network.ObjectMeta.Name).
 		Namespace(network.ObjectMeta.Namespace).
-		Resource(tprv1.NetworkResourcePlural).
+		Resource(crv1.NetworkResourcePlural).
 		Body(network).
 		Do().
 		Error()

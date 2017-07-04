@@ -24,7 +24,7 @@ Wait a while for installation compelete, then setup kubernetes and OpenStack cli
 
 ```sh
 # Kubernetes
-export KUBECONFIG=$HOME/admin.conf
+export KUBECONFIG=/etc/kubernetes/admin.conf
 kubectl cluster-info
 
 # OpenStack

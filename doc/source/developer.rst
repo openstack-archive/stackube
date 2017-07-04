@@ -27,22 +27,32 @@ Start
 
 ::
 
-   cat >/etc/stackube.conf <<EOF
-   [Global]
-   auth-url=https://x.x.x.x/identity_admin/v2.0
-   username=admin
-   password=password
-   tenant-name=admin
-   region=RegionOne
-   ext-net-id=x-x-x-x-x
-   EOF
-   ./_output/stackube-controller --v=5
+  # Please replace 10.123.0.x with your own external network
+  # and remember the id of your created external network
+  neutron net-create br-ex --router:external=True --shared
+  neutron subnet-create --ip_version 4 --gateway 10.123.0.1 br-ex 10.123.0.0/16 --allocation-pool start=10.123.0.2,end=10.123.0.200 --name public-subnet
+
+  # Create configure file for Stackube
+  cat >/etc/stackube.conf <<EOF
+  [Global]
+  auth-url = https://<your-keystone-ip:port>/identity_admin/v2.0 
+  username = admin
+  password = password
+  tenant-name = admin
+  region = RegionOne
+  ext-net-id = <id-of-your-external-network>
+  EOF
+
+  # Start stackube controller
+  ./_output/stackube-controller --v=5
 
 
 
 --------
 Test
 --------
+
+1. Initialize Neutron
 
 1. Prepare Tenant and Network
 

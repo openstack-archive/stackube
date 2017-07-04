@@ -3,18 +3,18 @@ package network
 import (
 	"fmt"
 
+	apiv1 "k8s.io/api/core/v1"
+	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/kubernetes"
-	apiv1 "k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 
-	tprv1 "git.openstack.org/openstack/stackube/pkg/apis/v1"
-	tprclient "git.openstack.org/openstack/stackube/pkg/network-controller/client"
+	crv1 "git.openstack.org/openstack/stackube/pkg/apis/v1"
+	crdClient "git.openstack.org/openstack/stackube/pkg/network-controller/client"
 	driver "git.openstack.org/openstack/stackube/pkg/openstack"
 	"git.openstack.org/openstack/stackube/pkg/util"
 
@@ -33,13 +33,13 @@ func (c *NetworkController) Run(stopCh <-chan struct{}) error {
 
 	source := cache.NewListWatchFromClient(
 		c.NetworkClient,
-		tprv1.NetworkResourcePlural,
+		crv1.NetworkResourcePlural,
 		apiv1.NamespaceAll,
 		fields.Everything())
 
 	_, networkInformer := cache.NewInformer(
 		source,
-		&tprv1.Network{},
+		&crv1.Network{},
 		0,
 		cache.ResourceEventHandlerFuncs{
 			AddFunc:    c.onAdd,
@@ -71,27 +71,21 @@ func NewNetworkController(kubeconfig, openstackConfigFile string) (*NetworkContr
 	if err != nil {
 		return nil, fmt.Errorf("failed to build kubeconfig: %v", err)
 	}
-	clientset, err := kubernetes.NewForConfig(config)
+	clientset, err := apiextensionsclient.NewForConfig(config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create kubeclient from config: %v", err)
 	}
 
-	// initialize third party resource if it does not exist
-	err = tprclient.CreateNetworkTPR(clientset)
+	// initialize CRD if it does not exist
+	_, err = crdClient.CreateNetworkCRD(clientset)
 	if err != nil && !apierrors.IsAlreadyExists(err) {
-		return nil, fmt.Errorf("failed to create TPR to kube-apiserver: %v", err)
+		return nil, fmt.Errorf("failed to create CRD to kube-apiserver: %v", err)
 	}
 
 	// make a new config for our extension's API group, using the first config as a baseline
-	networkClient, networkScheme, err := tprclient.NewClient(config)
+	networkClient, networkScheme, err := crdClient.NewClient(config)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create client for TPR: %v", err)
-	}
-
-	// wait until TPR gets processed
-	err = tprclient.WaitForNetworkResource(networkClient)
-	if err != nil {
-		return nil, fmt.Errorf("failed to wait TPR change to ready status: %v", err)
+		return nil, fmt.Errorf("failed to create client for CRD: %v", err)
 	}
 
 	networkController := &NetworkController{
@@ -103,7 +97,7 @@ func NewNetworkController(kubeconfig, openstackConfigFile string) (*NetworkContr
 }
 
 func (c *NetworkController) onAdd(obj interface{}) {
-	network := obj.(*tprv1.Network)
+	network := obj.(*crv1.Network)
 	glog.Infof("[NETWORK CONTROLLER] OnAdd %s\n", network.ObjectMeta.SelfLink)
 
 	// NEVER modify objects from the store. It's a read-only, local cache.
@@ -115,7 +109,7 @@ func (c *NetworkController) onAdd(obj interface{}) {
 		return
 	}
 
-	networkCopy := copyObj.(*tprv1.Network)
+	networkCopy := copyObj.(*crv1.Network)
 
 	// This will:
 	// 1. Create Network in Neutron
@@ -128,7 +122,7 @@ func (c *NetworkController) onUpdate(oldObj, newObj interface{}) {
 }
 
 func (c *NetworkController) onDelete(obj interface{}) {
-	if net, ok := obj.(*tprv1.Network); ok {
+	if net, ok := obj.(*crv1.Network); ok {
 		glog.V(4).Infof("NetworkController: network %s deleted", net.Name)
 		if net.Spec.NetworkID == "" {
 			networkName := util.BuildNetworkName(net.GetNamespace(), net.GetName())

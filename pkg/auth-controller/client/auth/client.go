@@ -6,11 +6,13 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/pkg/api"
 	"k8s.io/client-go/rest"
+
+	crv1 "git.openstack.org/openstack/stackube/pkg/apis/v1"
 )
 
-const (
-	TPRGroup   = "stackube.kubernetes.io"
-	TPRVersion = "v1"
+var (
+	CRDGroup   = crv1.GroupName
+	CRDVersion = crv1.SchemeGroupVersion.Version
 )
 
 type AuthInterface interface {
@@ -50,8 +52,8 @@ func NewForConfig(c *rest.Config) (*AuthClient, error) {
 
 func setConfigDefaults(config *rest.Config) {
 	config.GroupVersion = &schema.GroupVersion{
-		Group:   TPRGroup,
-		Version: TPRVersion,
+		Group:   CRDGroup,
+		Version: CRDVersion,
 	}
 	config.APIPath = "/apis"
 	config.NegotiatedSerializer = serializer.DirectCodecFactory{CodecFactory: api.Codecs}

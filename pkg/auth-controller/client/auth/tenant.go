@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	TPRTenantsKind = "Tenant"
-	TPRTenantName  = "tenants"
+	CRDTenantsKind = "Tenant"
+	CRDTenantName  = "tenants"
 )
 
 type TenantsGetter interface {
@@ -42,8 +42,8 @@ func newTenants(r rest.Interface, c *dynamic.Client, namespace string) *tenants 
 		r,
 		c.Resource(
 			&metav1.APIResource{
-				Kind:       TPRTenantsKind,
-				Name:       TPRTenantName,
+				Kind:       CRDTenantsKind,
+				Name:       CRDTenantName,
 				Namespaced: true,
 			},
 			namespace,
@@ -134,15 +134,15 @@ func TenantFromUnstructured(r *unstructured.Unstructured) (*v1.Tenant, error) {
 	if err := json.Unmarshal(b, &p); err != nil {
 		return nil, err
 	}
-	p.TypeMeta.Kind = TPRTenantsKind
-	p.TypeMeta.APIVersion = TPRGroup + "/" + TPRVersion
+	p.TypeMeta.Kind = CRDTenantsKind
+	p.TypeMeta.APIVersion = CRDGroup + "/" + CRDVersion
 	return &p, nil
 }
 
 // UnstructuredFromTenant marshals a Tenant object into dynamic client's unstructured
 func UnstructuredFromTenant(p *v1.Tenant) (*unstructured.Unstructured, error) {
-	p.TypeMeta.Kind = TPRTenantsKind
-	p.TypeMeta.APIVersion = TPRGroup + "/" + TPRVersion
+	p.TypeMeta.Kind = CRDTenantsKind
+	p.TypeMeta.APIVersion = CRDGroup + "/" + CRDVersion
 	b, err := json.Marshal(p)
 	if err != nil {
 		return nil, err

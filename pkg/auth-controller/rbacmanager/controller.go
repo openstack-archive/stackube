@@ -78,7 +78,7 @@ func (c *Controller) Run(stopc <-chan struct{}) error {
 		if err != nil {
 			return err
 		}
-		glog.V(4).Info("TPR API endpoints ready")
+		glog.V(4).Info("CRD API endpoints ready")
 	case <-stopc:
 		return nil
 	}

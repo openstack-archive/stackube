@@ -26,6 +26,35 @@
 			"Rev": "5bd2802263f21d8788851d5305584c82a5c75d7e"
 		},
 		{
+			"ImportPath": "github.com/containernetworking/cni/pkg/skel",
+			"Comment": "v0.5.2-64-g6a6f9d7",
+			"Rev": "6a6f9d7f5c148ba7134c9cf31687329bdf1c7eeb"
+		},
+		{
+			"ImportPath": "github.com/containernetworking/cni/pkg/types",
+			"Comment": "v0.5.2-64-g6a6f9d7",
+			"Rev": "6a6f9d7f5c148ba7134c9cf31687329bdf1c7eeb"
+		},
+		{
+			"ImportPath": "github.com/containernetworking/cni/pkg/types/020",
+			"Comment": "v0.5.2-64-g6a6f9d7",
+			"Rev": "6a6f9d7f5c148ba7134c9cf31687329bdf1c7eeb"
+		},
+		{
+			"ImportPath": "github.com/containernetworking/cni/pkg/types/current",
+			"Comment": "v0.5.2-64-g6a6f9d7",
+			"Rev": "6a6f9d7f5c148ba7134c9cf31687329bdf1c7eeb"
+		},
+		{
+			"ImportPath": "github.com/containernetworking/cni/pkg/version",
+			"Comment": "v0.5.2-64-g6a6f9d7",
+			"Rev": "6a6f9d7f5c148ba7134c9cf31687329bdf1c7eeb"
+		},
+		{
+			"ImportPath": "github.com/containernetworking/plugins/pkg/ns",
+			"Rev": "56d8984bbc73211051aaaa07ab32b2c194e39340"
+		},
+		{
 			"ImportPath": "github.com/davecgh/go-spew/spew",
 			"Comment": "v1.1.0",
 			"Rev": "346938d642f2ec3594ed81d874461961cd0faa76"
@@ -37,6 +66,11 @@
 		},
 		{
 			"ImportPath": "github.com/docker/distribution/reference",
+			"Comment": "v2.6.1-2-g42ea75c",
+			"Rev": "42ea75ca2d11ff2f34b8b4fffae7e3dc45ccf906"
+		},
+		{
+			"ImportPath": "github.com/docker/distribution/uuid",
 			"Comment": "v2.6.1-2-g42ea75c",
 			"Rev": "42ea75ca2d11ff2f34b8b4fffae7e3dc45ccf906"
 		},
@@ -160,6 +194,18 @@
 		},
 		{
 			"ImportPath": "github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/layer3/routers",
+			"Rev": "5102b608e3e070dadf65b060362fe4052f0c5967"
+		},
+		{
+			"ImportPath": "github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/portsbinding",
+			"Rev": "5102b608e3e070dadf65b060362fe4052f0c5967"
+		},
+		{
+			"ImportPath": "github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/security/groups",
+			"Rev": "5102b608e3e070dadf65b060362fe4052f0c5967"
+		},
+		{
+			"ImportPath": "github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/security/rules",
 			"Rev": "5102b608e3e070dadf65b060362fe4052f0c5967"
 		},
 		{

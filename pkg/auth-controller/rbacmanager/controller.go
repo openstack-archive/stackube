@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"git.openstack.org/openstack/stackube/pkg/auth-controller/rbacmanager/rbac"
-	"git.openstack.org/openstack/stackube/pkg/auth-controller/tenant"
 	"git.openstack.org/openstack/stackube/pkg/util"
 
 	"github.com/golang/glog"
@@ -29,8 +28,8 @@ type Controller struct {
 }
 
 // New creates a new RBAC controller.
-func New(conf tenant.Config) (*Controller, error) {
-	cfg, err := util.NewClusterConfig(conf.KubeConfig)
+func New(kubeconfig string) (*Controller, error) {
+	cfg, err := util.NewClusterConfig(kubeconfig)
 	if err != nil {
 		return nil, fmt.Errorf("init cluster config failed: %v", err)
 	}
@@ -62,29 +61,8 @@ func New(conf tenant.Config) (*Controller, error) {
 func (c *Controller) Run(stopc <-chan struct{}) error {
 	defer c.queue.ShutDown()
 
-	errChan := make(chan error)
-	go func() {
-		v, err := c.kclient.Discovery().ServerVersion()
-		if err != nil {
-			errChan <- fmt.Errorf("communicating with server failed: %v", err)
-			return
-		}
-		glog.V(4).Infof("Established connection established, cluster-version: %s", v)
-		errChan <- nil
-	}()
-
-	select {
-	case err := <-errChan:
-		if err != nil {
-			return err
-		}
-		glog.V(4).Info("CRD API endpoints ready")
-	case <-stopc:
-		return nil
-	}
-
+	glog.V(4).Info("Starting rbac manager")
 	go c.worker()
-
 	go c.nsInf.Run(stopc)
 
 	<-stopc

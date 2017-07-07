@@ -26,15 +26,15 @@ var (
 		"path to stackube config file")
 )
 
-func startControllers(cfg tenant.Config) error {
+func startControllers(kubeconfig, cloudconfig string) error {
 	// Creates a new tenant controller
-	tc, err := tenant.New(cfg)
+	tc, err := tenant.New(kubeconfig, cloudconfig)
 	if err != nil {
 		return err
 	}
 
 	// Creates a new RBAC controller
-	rm, err := rbacmanager.New(cfg)
+	rm, err := rbacmanager.New(kubeconfig)
 	if err != nil {
 		return err
 	}
@@ -47,9 +47,7 @@ func startControllers(cfg tenant.Config) error {
 	wg.Go(func() error { return rm.Run(ctx.Done()) })
 
 	networkController, err := network.NewNetworkController(
-		cfg.KubeConfig,
-		cfg.CloudConfig,
-	)
+		kubeconfig, cloudconfig)
 	if err != nil {
 		return err
 	}
@@ -106,11 +104,7 @@ func main() {
 	}
 
 	// Start stackube controllers.
-	cfg := tenant.Config{
-		KubeConfig:  *kubeconfig,
-		CloudConfig: *cloudconfig,
-	}
-	if err := startControllers(cfg); err != nil {
+	if err := startControllers(*kubeconfig, *cloudconfig); err != nil {
 		glog.Fatal(err)
 	}
 }

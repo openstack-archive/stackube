@@ -26,6 +26,21 @@ const (
 	NetworkTerminating = "Terminating"
 )
 
+// These are the valid phases of a tenant state.
+const (
+	// TenantInitializing means the tenant is just accepted by system
+	TenantInitializing = "Initializing"
+	// TenantActive means the tenant is available for use in the system
+	TenantActive = "Active"
+	// TenantPending means the tenant is accepted by system, but it is still
+	// processing by tenant provider
+	TenantPending = "Pending"
+	// TenantFailed means the tenant is not available
+	TenantFailed = "Failed"
+	// TenantTerminating means the tenant is undergoing graceful termination
+	TenantTerminating = "Terminating"
+)
+
 // Network describes a Neutron network.
 type Network struct {
 	// TypeMeta defines type of the object and its API schema version.

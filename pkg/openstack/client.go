@@ -2,22 +2,25 @@ package openstack
 
 import (
 	"errors"
+	"fmt"
 	"os"
 
+	drivertypes "git.openstack.org/openstack/stackube/pkg/openstack/types"
+	"git.openstack.org/openstack/stackube/pkg/util"
+	"github.com/docker/distribution/uuid"
 	"github.com/golang/glog"
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack"
 	"github.com/gophercloud/gophercloud/openstack/identity/v2/tenants"
 	"github.com/gophercloud/gophercloud/openstack/identity/v2/users"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/layer3/routers"
+	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/portsbinding"
+	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/security/groups"
+	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/security/rules"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/networks"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/ports"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/subnets"
 	"github.com/gophercloud/gophercloud/pagination"
-
-	"fmt"
-
-	drivertypes "git.openstack.org/openstack/stackube/pkg/openstack/types"
 	gcfg "gopkg.in/gcfg.v1"
 )
 
@@ -26,7 +29,7 @@ const (
 
 	podNamePrefix     = "kube"
 	securitygroupName = "kube-securitygroup-default"
-	hostnameMaxLen    = 63
+	HostnameMaxLen    = 63
 
 	// Service affinities
 	ServiceAffinityNone     = "None"
@@ -41,11 +44,18 @@ var (
 )
 
 type Client struct {
-	Identity *gophercloud.ServiceClient
-	Provider *gophercloud.ProviderClient
-	Network  *gophercloud.ServiceClient
-	Region   string
-	ExtNetID string
+	Identity          *gophercloud.ServiceClient
+	Provider          *gophercloud.ProviderClient
+	Network           *gophercloud.ServiceClient
+	Region            string
+	ExtNetID          string
+	PluginName        string
+	IntegrationBridge string
+}
+
+type PluginOpts struct {
+	PluginName        string `gcfg:"plugin-name"`
+	IntegrationBridge string `gcfg:"integration-bridge"`
 }
 
 type Config struct {
@@ -57,6 +67,7 @@ type Config struct {
 		Region     string `gcfg:"region"`
 		ExtNetID   string `gcfg:"ext-net-id"`
 	}
+	Plugin PluginOpts
 }
 
 func toAuthOptions(cfg Config) gophercloud.AuthOptions {
@@ -108,11 +119,13 @@ func NewClient(config string) (*Client, error) {
 	}
 
 	client := &Client{
-		Identity: identity,
-		Provider: provider,
-		Network:  network,
-		Region:   cfg.Global.Region,
-		ExtNetID: cfg.Global.ExtNetID,
+		Identity:          identity,
+		Provider:          provider,
+		Network:           network,
+		Region:            cfg.Global.Region,
+		ExtNetID:          cfg.Global.ExtNetID,
+		PluginName:        cfg.Plugin.PluginName,
+		IntegrationBridge: cfg.Plugin.IntegrationBridge,
 	}
 	return client, nil
 }
@@ -243,6 +256,12 @@ func reasonForError(err error) int {
 	return 0
 }
 
+// Get tenant's network by tenantID(tenant and network are one to one mapping in stackube)
+func (os *Client) GetOpenStackNetworkByTenantID(tenantID string) (*networks.Network, error) {
+	opts := networks.ListOpts{TenantID: tenantID}
+	return os.getOpenStackNetwork(&opts)
+}
+
 // Get openstack network by id
 func (os *Client) getOpenStackNetworkByID(id string) (*networks.Network, error) {
 	opts := networks.ListOpts{ID: id}
@@ -280,7 +299,7 @@ func (os *Client) getOpenStackNetwork(opts *networks.ListOpts) (*networks.Networ
 }
 
 // Get provider subnet by id
-func (os *Client) getProviderSubnet(osSubnetID string) (*drivertypes.Subnet, error) {
+func (os *Client) GetProviderSubnet(osSubnetID string) (*drivertypes.Subnet, error) {
 	s, err := subnets.Get(os.Network, osSubnetID).Extract()
 	if err != nil {
 		glog.Errorf("Get openstack subnet failed: %v", err)
@@ -339,7 +358,7 @@ func (os *Client) OSNetworktoProviderNetwork(osNetwork *networks.Network) (*driv
 	providerNetwork.TenantID = osNetwork.TenantID
 
 	for _, subnetID := range osNetwork.Subnets {
-		s, err := os.getProviderSubnet(subnetID)
+		s, err := os.GetProviderSubnet(subnetID)
 		if err != nil {
 			return nil, err
 		}
@@ -579,4 +598,205 @@ func (os *Client) CheckTenantID(tenantID string) (bool, error) {
 	})
 
 	return found, err
+}
+
+func (os *Client) GetPort(name string) (*ports.Port, error) {
+	opts := ports.ListOpts{Name: name}
+	pager := ports.List(os.Network, opts)
+
+	var port *ports.Port
+	err := pager.EachPage(func(page pagination.Page) (bool, error) {
+		portList, err := ports.ExtractPorts(page)
+		if err != nil {
+			glog.Errorf("Get openstack ports error: %v", err)
+			return false, err
+		}
+
+		if len(portList) > 1 {
+			return false, ErrMultipleResults
+		}
+
+		if len(portList) == 0 {
+			return false, ErrNotFound
+		}
+
+		port = &portList[0]
+
+		return true, err
+	})
+
+	return port, err
+}
+
+func getHostName() string {
+	host, err := os.Hostname()
+	if err != nil {
+		return ""
+	}
+
+	return host
+}
+
+func (os *Client) ensureSecurityGroup(tenantID string) (string, error) {
+	var securitygroup *groups.SecGroup
+
+	opts := groups.ListOpts{
+		TenantID: tenantID,
+		Name:     securitygroupName,
+	}
+	pager := groups.List(os.Network, opts)
+	err := pager.EachPage(func(page pagination.Page) (bool, error) {
+		sg, err := groups.ExtractGroups(page)
+		if err != nil {
+			glog.Errorf("Get openstack securitygroups error: %v", err)
+			return false, err
+		}
+
+		if len(sg) > 0 {
+			securitygroup = &sg[0]
+		}
+
+		return true, err
+	})
+	if err != nil {
+		return "", err
+	}
+
+	// If securitygroup doesn't exist, create a new one
+	if securitygroup == nil {
+		securitygroup, err = groups.Create(os.Network, groups.CreateOpts{
+			Name:     securitygroupName,
+			TenantID: tenantID,
+		}).Extract()
+
+		if err != nil {
+			return "", err
+		}
+	}
+
+	var secGroupsRules int
+	listopts := rules.ListOpts{
+		TenantID:   tenantID,
+		Direction:  string(rules.DirIngress),
+		SecGroupID: securitygroup.ID,
+	}
+	rulesPager := rules.List(os.Network, listopts)
+	err = rulesPager.EachPage(func(page pagination.Page) (bool, error) {
+		r, err := rules.ExtractRules(page)
+		if err != nil {
+			glog.Errorf("Get openstack securitygroup rules error: %v", err)
+			return false, err
+		}
+
+		secGroupsRules = len(r)
+
+		return true, err
+	})
+	if err != nil {
+		return "", err
+	}
+
+	// create new rules
+	if secGroupsRules == 0 {
+		// create egress rule
+		_, err = rules.Create(os.Network, rules.CreateOpts{
+			TenantID:   tenantID,
+			SecGroupID: securitygroup.ID,
+			Direction:  rules.DirEgress,
+			EtherType:  rules.EtherType4,
+		}).Extract()
+
+		// create ingress rule
+		_, err := rules.Create(os.Network, rules.CreateOpts{
+			TenantID:   tenantID,
+			SecGroupID: securitygroup.ID,
+			Direction:  rules.DirIngress,
+			EtherType:  rules.EtherType4,
+		}).Extract()
+		if err != nil {
+			return "", err
+		}
+	}
+
+	return securitygroup.ID, nil
+}
+
+// Create an port
+func (os *Client) CreatePort(networkID, tenantID, portName string) (*portsbinding.Port, error) {
+	securitygroup, err := os.ensureSecurityGroup(tenantID)
+	if err != nil {
+		glog.Errorf("EnsureSecurityGroup failed: %v", err)
+		return nil, err
+	}
+
+	opts := portsbinding.CreateOpts{
+		HostID: getHostName(),
+		CreateOptsBuilder: ports.CreateOpts{
+			NetworkID:      networkID,
+			Name:           portName,
+			AdminStateUp:   &adminStateUp,
+			TenantID:       tenantID,
+			DeviceID:       uuid.Generate().String(),
+			DeviceOwner:    fmt.Sprintf("compute:%s", getHostName()),
+			SecurityGroups: []string{securitygroup},
+		},
+	}
+
+	port, err := portsbinding.Create(os.Network, opts).Extract()
+	if err != nil {
+		glog.Errorf("Create port %s failed: %v", portName, err)
+		return nil, err
+	}
+	return port, nil
+}
+
+// List all ports in the network
+func (os *Client) ListPorts(networkID, deviceOwner string) ([]ports.Port, error) {
+	var results []ports.Port
+	opts := ports.ListOpts{
+		NetworkID:   networkID,
+		DeviceOwner: deviceOwner,
+	}
+	pager := ports.List(os.Network, opts)
+	err := pager.EachPage(func(page pagination.Page) (bool, error) {
+		portList, err := ports.ExtractPorts(page)
+		if err != nil {
+			glog.Errorf("Get openstack ports error: %v", err)
+			return false, err
+		}
+
+		for _, port := range portList {
+			results = append(results, port)
+		}
+
+		return true, err
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return results, nil
+}
+
+// Delete port by portName
+func (os *Client) DeletePort(portName string) error {
+	port, err := os.GetPort(portName)
+	if err == util.ErrNotFound {
+		glog.V(4).Infof("Port %s already deleted", portName)
+		return nil
+	} else if err != nil {
+		glog.Errorf("Get openstack port %s failed: %v", portName, err)
+		return err
+	}
+
+	if port != nil {
+		err := ports.Delete(os.Network, port.ID).ExtractErr()
+		if err != nil {
+			glog.Errorf("Delete openstack port %s failed: %v", portName, err)
+			return err
+		}
+	}
+
+	return nil
 }

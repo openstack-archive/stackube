@@ -18,3 +18,7 @@ func BuildNetworkName(namespace, name string) string {
 func BuildLoadBalancerName(namespace, name string) string {
 	return namePrefix + "_" + namespace + "_" + name
 }
+
+func BuildPortName(namespace, podName string) string {
+	return namePrefix + "_" + namespace + "_" + podName
+}

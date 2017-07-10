@@ -37,11 +37,15 @@ depend-update: work
 
 .PHONY: build
 build: depend
-	cd $(DEST) && go build $(GOFLAGS) -a -o $(OUTPUT)/stackube-controller ./cmd/stackube-controller
+	cd $(DEST)
+	go build $(GOFLAGS) -a -o $(OUTPUT)/stackube-controller ./cmd/stackube-controller
+	go build $(GOFLAGS) -a -o $(OUTPUT)/kubestack ./cmd/kubestack
 
 .PHONY: install
 install: depend
-	cd $(DEST) && go install $(GOFLAGS) -tags '$(TAGS)' -ldflags '$(LDFLAGS)' ./...
+	cd $(DEST)
+	install -D -m 755 $(OUTPUT)/stackube-controller /usr/local/bin/stackube-controller
+	install -D -m 755 $(OUTPUT)/kubestack /opt/cni/bin/kubestack
 
 .PHONY: test
 test: test-unit
@@ -59,7 +63,7 @@ test-flags:
 # to detect if any files are listed as having format problems.
 .PHONY: fmt
 fmt: work
-	files=$$(cd $(DEST) && find . -not \(       \(         -wholename '*/vendor/*'       \) -prune     \) -name '*.go' | xargs gofmt -s -l | tee >(cat - >&2)); [ -z "$$files" ]
+	files=$$(cd $(DEST) && find . -not \(  \( -wholename '*/vendor/*' \) -prune \) -name '*.go' | xargs gofmt -s -l | tee >(cat - >&2)); [ -z "$$files" ]
 
 .PHONY: fmtfix
 fmtfix: work

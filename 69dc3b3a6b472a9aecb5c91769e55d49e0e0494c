@@ -1,0 +1,9 @@
+Code-Review+2: resouer <harryz@hyper.sh>
+Workflow+1: resouer <harryz@hyper.sh>
+Code-Review+1: wade lee <21621232@zju.edu.cn>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Mon, 10 Jul 2017 13:43:01 +0000
+Reviewed-on: https://review.openstack.org/482041
+Project: openstack/stackube
+Branch: refs/heads/master

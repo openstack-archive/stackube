@@ -4,15 +4,18 @@ import (
 	"fmt"
 	"time"
 
+	crv1 "git.openstack.org/openstack/stackube/pkg/apis/v1"
 	"git.openstack.org/openstack/stackube/pkg/auth-controller/rbacmanager/rbac"
 	"git.openstack.org/openstack/stackube/pkg/util"
 
 	"github.com/golang/glog"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api"
 	"k8s.io/client-go/pkg/api/v1"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 )
@@ -22,13 +25,22 @@ const (
 )
 
 type Controller struct {
-	kclient *kubernetes.Clientset
-	nsInf   cache.SharedIndexInformer
-	queue   workqueue.RateLimitingInterface
+	kclient       *kubernetes.Clientset
+	nsInf         cache.SharedIndexInformer
+	queue         workqueue.RateLimitingInterface
+	tenantClient  *rest.RESTClient
+	networkClient *rest.RESTClient
+	systemCIDR    string
+	systemGateway string
 }
 
 // New creates a new RBAC controller.
-func New(kubeconfig string) (*Controller, error) {
+func New(kubeconfig string,
+	tenantClient *rest.RESTClient,
+	networkClient *rest.RESTClient,
+	systemCIDR string,
+	systemGateway string,
+) (*Controller, error) {
 	cfg, err := util.NewClusterConfig(kubeconfig)
 	if err != nil {
 		return nil, fmt.Errorf("init cluster config failed: %v", err)
@@ -39,8 +51,12 @@ func New(kubeconfig string) (*Controller, error) {
 	}
 
 	o := &Controller{
-		kclient: client,
-		queue:   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "rbacmanager"),
+		kclient:       client,
+		queue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "rbacmanager"),
+		tenantClient:  tenantClient,
+		networkClient: networkClient,
+		systemCIDR:    systemCIDR,
+		systemGateway: systemGateway,
 	}
 
 	o.nsInf = cache.NewSharedIndexInformer(
@@ -127,8 +143,61 @@ func (c *Controller) handleNamespaceAdd(obj interface{}) {
 	if !ok {
 		return
 	}
+	// check if this is a system reserved namespace
+	if util.IsSystemNamespace(key) {
+		if err := c.initSystemReservedTenantNetwork(); err != nil {
+			glog.Error(err)
+			return
+		}
+	}
 	glog.V(4).Infof("Added namespace %s", key)
 	c.enqueue(key)
+}
+
+func (c *Controller) initSystemReservedTenantNetwork() error {
+	tenant := &crv1.Tenant{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: util.SystemTenant,
+		},
+		Spec: crv1.TenantSpec{
+			UserName: util.SystemTenant,
+			Password: util.SystemPassword,
+		},
+	}
+
+	err := c.tenantClient.Post().
+		Namespace(util.SystemTenant).
+		Resource(crv1.TenantResourcePlural).
+		Body(tenant).
+		Do().Error()
+	if err != nil && !apierrors.IsAlreadyExists(err) {
+		return fmt.Errorf("failed to create system Tenant: %v", err)
+	}
+
+	// NOTE(harry): we do not support update Network, so although configurable,
+	// user can not update CIDR by changing the configuration, unless manually delete
+	// that system network. We may need to document this.
+	network := &crv1.Network{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: util.SystemNetwork,
+		},
+		Spec: crv1.NetworkSpec{
+			CIDR:    c.systemCIDR,
+			Gateway: c.systemGateway,
+		},
+	}
+
+	// network controller will always check if Tenant is ready so we will not wait here
+	err = c.networkClient.Post().
+		Resource(crv1.NetworkResourcePlural).
+		Namespace(util.SystemTenant).
+		Body(network).
+		Do().Error()
+	if err != nil && !apierrors.IsAlreadyExists(err) {
+		return fmt.Errorf("failed to create system Network: %v", err)
+	}
+
+	return nil
 }
 
 func (c *Controller) handleNamespaceDelete(obj interface{}) {

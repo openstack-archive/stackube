@@ -144,6 +144,9 @@ func readConfig(config string) (Config, error) {
 }
 
 func (c *Client) GetTenantIDFromName(tenantName string) (string, error) {
+	if util.IsSystemNamespace(tenantName) {
+		tenantName = util.SystemTenant
+	}
 	var tenantID string
 	err := tenants.List(c.Identity, nil).EachPage(func(page pagination.Page) (bool, error) {
 		tenantList, err1 := tenants.ExtractTenants(page)

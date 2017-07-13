@@ -15,7 +15,7 @@ import (
 
 	crv1 "git.openstack.org/openstack/stackube/pkg/apis/v1"
 	crdClient "git.openstack.org/openstack/stackube/pkg/network-controller/client"
-	driver "git.openstack.org/openstack/stackube/pkg/openstack"
+	osDriver "git.openstack.org/openstack/stackube/pkg/openstack"
 	"git.openstack.org/openstack/stackube/pkg/util"
 
 	"github.com/golang/glog"
@@ -23,16 +23,20 @@ import (
 
 // Watcher is an network of watching on resource create/update/delete events
 type NetworkController struct {
-	NetworkClient *rest.RESTClient
-	NetworkScheme *runtime.Scheme
-	Driver        *driver.Client
+	networkClient *rest.RESTClient
+	networkScheme *runtime.Scheme
+	driver        *osDriver.Client
+}
+
+func (c *NetworkController) GetNetworkClient() *rest.RESTClient {
+	return c.networkClient
 }
 
 func (c *NetworkController) Run(stopCh <-chan struct{}) error {
 	defer utilruntime.HandleCrash()
 
 	source := cache.NewListWatchFromClient(
-		c.NetworkClient,
+		c.networkClient,
 		crv1.NetworkResourcePlural,
 		apiv1.NamespaceAll,
 		fields.Everything())
@@ -49,6 +53,7 @@ func (c *NetworkController) Run(stopCh <-chan struct{}) error {
 
 	go networkInformer.Run(stopCh)
 	<-stopCh
+
 	return nil
 }
 
@@ -61,7 +66,7 @@ func buildConfig(kubeconfig string) (*rest.Config, error) {
 
 func NewNetworkController(kubeconfig, openstackConfigFile string) (*NetworkController, error) {
 	// Create OpenStack client from config
-	openstack, err := driver.NewClient(openstackConfigFile)
+	openstack, err := osDriver.NewClient(openstackConfigFile)
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't initialize openstack: %#v", err)
 	}
@@ -89,21 +94,22 @@ func NewNetworkController(kubeconfig, openstackConfigFile string) (*NetworkContr
 	}
 
 	networkController := &NetworkController{
-		NetworkClient: networkClient,
-		NetworkScheme: networkScheme,
-		Driver:        openstack,
+		networkClient: networkClient,
+		networkScheme: networkScheme,
+		driver:        openstack,
 	}
 	return networkController, nil
 }
 
 func (c *NetworkController) onAdd(obj interface{}) {
 	network := obj.(*crv1.Network)
-	glog.Infof("[NETWORK CONTROLLER] OnAdd %s\n", network.ObjectMeta.SelfLink)
+	// glog.Infof("[NETWORK CONTROLLER] OnAdd %\n", network.ObjectMeta.SelfLink)
+	glog.Infof("[NETWORK CONTROLLER] OnAdd %#v\n", network)
 
 	// NEVER modify objects from the store. It's a read-only, local cache.
 	// You can use networkScheme.Copy() to make a deep copy of original object and modify this copy
 	// Or create a copy manually for better performance
-	copyObj, err := c.NetworkScheme.Copy(network)
+	copyObj, err := c.networkScheme.Copy(network)
 	if err != nil {
 		glog.Errorf("ERROR creating a deep copy of network object: %v\n", err)
 		return
@@ -113,8 +119,8 @@ func (c *NetworkController) onAdd(obj interface{}) {
 
 	// This will:
 	// 1. Create Network in Neutron
-	// 2. Update Network TRP object status to Active or Failed
-	c.addNetworkToNeutron(networkCopy)
+	// 2. Update Network CRD object status to Active or Failed
+	c.addNetworkToDriver(networkCopy)
 }
 
 func (c *NetworkController) onUpdate(oldObj, newObj interface{}) {
@@ -126,7 +132,7 @@ func (c *NetworkController) onDelete(obj interface{}) {
 		glog.V(4).Infof("NetworkController: network %s deleted", net.Name)
 		if net.Spec.NetworkID == "" {
 			networkName := util.BuildNetworkName(net.GetNamespace(), net.GetName())
-			err := c.Driver.DeleteNetwork(networkName)
+			err := c.driver.DeleteNetwork(networkName)
 			if err != nil {
 				glog.Errorf("NetworkController: delete network %s failed in networkprovider: %v", networkName, err)
 			} else {

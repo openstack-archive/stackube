@@ -69,12 +69,13 @@ Test
     password: "password"
 
 
+  # for now network should have the same name as namespace (to enforce 1:1 mapping)
   $ cat test-network.yaml
 
   apiVersion: "stackube.kubernetes.io/v1"
   kind: Network
   metadata:
-    name: test-net
+    name: test
     namespace: test
   spec:
     cidr: "192.168.0.0/24"

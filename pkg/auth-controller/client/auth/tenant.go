@@ -11,7 +11,6 @@ import (
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
-	apiv1 "k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/rest"
 )
 
@@ -47,12 +46,13 @@ func CreateTenantCRD(clientset apiextensionsclient.Interface) (*apiextensionsv1b
 	}
 }
 
-func WaitForTenantInstanceProcessed(kubeClient *rest.RESTClient, name string) error {
+func WaitForTenantInstanceProcessed(tenantClient *rest.RESTClient, name string) error {
 	return wait.Poll(100*time.Millisecond, 10*time.Second, func() (bool, error) {
 		var tenant crv1.Tenant
-		err := kubeClient.Get().
+		err := tenantClient.Get().
 			Resource(crv1.TenantResourcePlural).
-			Namespace(apiv1.NamespaceDefault).
+			// namespace and tenant has same name
+			Namespace(name).
 			Name(name).
 			Do().Into(&tenant)
 

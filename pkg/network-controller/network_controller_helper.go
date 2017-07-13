@@ -3,13 +3,12 @@ package network
 import (
 	"time"
 
-	"k8s.io/apimachinery/pkg/util/wait"
-
 	crv1 "git.openstack.org/openstack/stackube/pkg/apis/v1"
 	drivertypes "git.openstack.org/openstack/stackube/pkg/openstack/types"
 	"git.openstack.org/openstack/stackube/pkg/util"
 
 	"github.com/golang/glog"
+	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 const (
@@ -17,22 +16,26 @@ const (
 	subnetSuffix  = "subnet"
 )
 
-func (c *NetworkController) addNetworkToNeutron(kubeNetwork *crv1.Network) {
+func (c *NetworkController) addNetworkToDriver(kubeNetwork *crv1.Network) {
 	// The tenant name is the same with namespace, let's get tenantID by tenantName
 	tenantName := kubeNetwork.GetNamespace()
-	tenantID, err := c.Driver.GetTenantIDFromName(tenantName)
-	if err != nil {
-		// Retry for a while if failed
+	tenantID, err := c.driver.GetTenantIDFromName(tenantName)
+
+	// Retry for a while if fetch tenantID failed or tenantID not found,
+	// this is normally caused by cloud provider processing
+	if err != nil || tenantID == "" {
 		err = wait.Poll(2*time.Second, 10*time.Second, func() (bool, error) {
-			glog.V(3).Infof("failed to fetch tenantID for tenantName: %v, retrying\n", tenantName)
-			if tenantID, err = c.Driver.GetTenantIDFromName(kubeNetwork.GetNamespace()); err != nil {
+			tenantID, err = c.driver.GetTenantIDFromName(kubeNetwork.GetNamespace())
+			if err != nil || tenantID == "" {
+				glog.V(5).Infof("failed to fetch tenantID for tenantName: %v, retrying\n", tenantName)
 				return false, nil
 			}
 			return true, nil
 		})
 	}
-	if err != nil {
+	if err != nil || tenantID == "" {
 		glog.Errorf("failed to fetch tenantID for tenantName: %v, abort! \n", tenantName)
+		return
 	} else {
 		glog.V(3).Infof("Got tenantID: %v for tenantName: %v", tenantID, tenantName)
 	}
@@ -59,7 +62,7 @@ func (c *NetworkController) addNetworkToNeutron(kubeNetwork *crv1.Network) {
 	glog.V(4).Infof("[NetworkController]: adding network %s", driverNetwork.Name)
 
 	// Check if tenant id exist
-	check, err := c.Driver.CheckTenantID(driverNetwork.TenantID)
+	check, err := c.driver.CheckTenantID(driverNetwork.TenantID)
 	if err != nil {
 		glog.Errorf("[NetworkController]: check tenantID failed: %v", err)
 	}
@@ -72,7 +75,7 @@ func (c *NetworkController) addNetworkToNeutron(kubeNetwork *crv1.Network) {
 
 	// Check if provider network id exist
 	if kubeNetwork.Spec.NetworkID != "" {
-		_, err := c.Driver.GetNetworkByID(kubeNetwork.Spec.NetworkID)
+		_, err := c.driver.GetNetworkByID(kubeNetwork.Spec.NetworkID)
 		if err != nil {
 			glog.Warningf("[NetworkController]: network %s doesn't exit in network provider", kubeNetwork.Spec.NetworkID)
 			newNetworkStatus = crv1.NetworkFailed
@@ -83,12 +86,12 @@ func (c *NetworkController) addNetworkToNeutron(kubeNetwork *crv1.Network) {
 			newNetworkStatus = crv1.NetworkFailed
 		} else {
 			// Check if provider network has already created
-			_, err := c.Driver.GetNetwork(networkName)
+			_, err := c.driver.GetNetwork(networkName)
 			if err == nil {
 				glog.Infof("[NetworkController]: network %s has already created", networkName)
 			} else if err.Error() == util.ErrNotFound.Error() {
 				// Create a new network by network provider
-				err := c.Driver.CreateNetwork(driverNetwork)
+				err := c.driver.CreateNetwork(driverNetwork)
 				if err != nil {
 					glog.Warningf("[NetworkController]: create network %s failed: %v", driverNetwork.Name, err)
 					newNetworkStatus = crv1.NetworkFailed
@@ -106,9 +109,9 @@ func (c *NetworkController) addNetworkToNeutron(kubeNetwork *crv1.Network) {
 
 // updateNetwork updates Network CRD object by given object
 func (c *NetworkController) updateNetwork(network *crv1.Network) {
-	err := c.NetworkClient.Put().
-		Name(network.ObjectMeta.Name).
-		Namespace(network.ObjectMeta.Namespace).
+	err := c.networkClient.Put().
+		Name(network.Name).
+		Namespace(network.Namespace).
 		Resource(crv1.NetworkResourcePlural).
 		Body(network).
 		Do().

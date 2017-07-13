@@ -11,7 +11,6 @@ import (
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
-	apiv1 "k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/rest"
 )
 
@@ -47,12 +46,12 @@ func CreateNetworkCRD(clientset apiextensionsclient.Interface) (*apiextensionsv1
 	}
 }
 
-func WaitForNetworkInstanceProcessed(kubeClient *rest.RESTClient, name string) error {
+func WaitForNetworkInstanceProcessed(networkClient *rest.RESTClient, name, namespace string) error {
 	return wait.Poll(100*time.Millisecond, 10*time.Second, func() (bool, error) {
 		var network crv1.Network
-		err := kubeClient.Get().
+		err := networkClient.Get().
 			Resource(crv1.NetworkResourcePlural).
-			Namespace(apiv1.NamespaceDefault).
+			Namespace(namespace).
 			Name(name).
 			Do().Into(&network)
 

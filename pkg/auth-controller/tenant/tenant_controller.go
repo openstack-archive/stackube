@@ -29,8 +29,8 @@ type TenantController struct {
 	openstackClient *openstack.Client
 }
 
-// New creates a new tenant controller.
-func New(kubeconfig, cloudconfig string) (*TenantController, error) {
+// NewTenantController creates a new tenant controller.
+func NewTenantController(kubeconfig, cloudconfig string) (*TenantController, error) {
 	// Create OpenStack client from config
 	openStackClient, err := openstack.NewClient(cloudconfig)
 	if err != nil {
@@ -85,6 +85,10 @@ func buildConfig(kubeconfig string) (*rest.Config, error) {
 	return rest.InClusterConfig()
 }
 
+func (c *TenantController) GetTenantClient() *rest.RESTClient {
+	return c.tenantClient
+}
+
 // Run the controller.
 func (c *TenantController) Run(stopCh <-chan struct{}) error {
 	defer utilruntime.HandleCrash()
@@ -112,7 +116,7 @@ func (c *TenantController) Run(stopCh <-chan struct{}) error {
 
 func (c *TenantController) onAdd(obj interface{}) {
 	tenant := obj.(*crv1.Tenant)
-	glog.V(3).Infof("Tenant controller received new object %q\n", tenant)
+	glog.V(3).Infof("Tenant controller received new object %v\n", tenant)
 
 	copyObj, err := c.tenantScheme.Copy(tenant)
 	if err != nil {
@@ -134,7 +138,7 @@ func (c *TenantController) onDelete(obj interface{}) {
 		return
 	}
 
-	glog.V(3).Infof("Tenant controller received deleted tenant %q\n", tenant)
+	glog.V(3).Infof("Tenant controller received deleted tenant %v\n", tenant)
 
 	deleteOptions := &apismetav1.DeleteOptions{
 		TypeMeta: apismetav1.TypeMeta{

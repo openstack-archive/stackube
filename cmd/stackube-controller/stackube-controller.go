@@ -24,17 +24,31 @@ var (
 		"path to kubernetes admin config file")
 	cloudconfig = pflag.String("cloudconfig", "/etc/stackube.conf",
 		"path to stackube config file")
+	systemCIDR    = pflag.String("system-cidr", "10.10.10.10/24", "system Pod network CIDR")
+	systemGateway = pflag.String("system-gateway", "10.10.10.1", "system Pod network gateway")
 )
 
 func startControllers(kubeconfig, cloudconfig string) error {
-	// Creates a new tenant controller
-	tc, err := tenant.New(kubeconfig, cloudconfig)
+	// Creates a new Tenant controller
+	tc, err := tenant.NewTenantController(kubeconfig, cloudconfig)
+	if err != nil {
+		return err
+	}
+
+	// Creates a new Network controller
+	nc, err := network.NewNetworkController(
+		kubeconfig, cloudconfig)
 	if err != nil {
 		return err
 	}
 
 	// Creates a new RBAC controller
-	rm, err := rbacmanager.New(kubeconfig)
+	rm, err := rbacmanager.New(kubeconfig,
+		tc.GetTenantClient(),
+		nc.GetNetworkClient(),
+		*systemCIDR,
+		*systemGateway,
+	)
 	if err != nil {
 		return err
 	}
@@ -46,14 +60,8 @@ func startControllers(kubeconfig, cloudconfig string) error {
 	wg.Go(func() error { return tc.Run(ctx.Done()) })
 	wg.Go(func() error { return rm.Run(ctx.Done()) })
 
-	networkController, err := network.NewNetworkController(
-		kubeconfig, cloudconfig)
-	if err != nil {
-		return err
-	}
-
 	// start network controller
-	wg.Go(func() error { return networkController.Run(ctx.Done()) })
+	wg.Go(func() error { return nc.Run(ctx.Done()) })
 
 	term := make(chan os.Signal)
 	signal.Notify(term, os.Interrupt, syscall.SIGTERM)

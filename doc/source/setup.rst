@@ -44,7 +44,7 @@ Start installation:
 Setup environment variables for kubectl and openstack client:
 ::
 
-  export KUBECONFIG=$HOME/admin.conf
+  export KUBECONFIG=/etc/kubernetes/admin.conf 
   source openrc admin admin
 
 ================

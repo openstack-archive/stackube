@@ -40,12 +40,14 @@ build: depend
 	cd $(DEST)
 	go build $(GOFLAGS) -a -o $(OUTPUT)/stackube-controller ./cmd/stackube-controller
 	go build $(GOFLAGS) -a -o $(OUTPUT)/kubestack ./cmd/kubestack
+	KUBESTACK_VERSION=$(shell ./cmd/kubestack/kubestack -v)
+	docker build -t stackube/kubestack:v$(KUBESTACK_VERSION) ./deployment/kubestack/
 
 .PHONY: install
 install: depend
 	cd $(DEST)
 	install -D -m 755 $(OUTPUT)/stackube-controller /usr/local/bin/stackube-controller
-	install -D -m 755 $(OUTPUT)/kubestack /opt/cni/bin/kubestack
+	kubectl create -f ./deployment/kubestack/kubestack.yaml
 
 .PHONY: test
 test: test-unit

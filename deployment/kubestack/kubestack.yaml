@@ -1,0 +1,115 @@
+# This ConfigMap is used to configure a self-hosted kubestack installation.
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: kubestack-config
+  namespace: kube-system
+data:
+  auth-url: "<Your-openstack-authentication-endpoint>"
+  username: "admin"
+  password: "password"
+  tenant-name: "admin"
+  region: "RegionOne"
+  ext-net-id: "<Your-external-network-id>"
+  plugin-name: "ovs"
+  integration-bridge: "br-int"
+
+---
+
+# This manifest installs kubestack CNI plugins and network config
+# on each master and worker node in a Kubernetes cluster.
+kind: DaemonSet
+apiVersion: extensions/v1beta1
+metadata:
+  name: kubestack
+  namespace: kube-system
+  labels:
+    k8s-app: kubestack
+spec:
+  selector:
+    matchLabels:
+      k8s-app: kubestack
+  template:
+    metadata:
+      labels:
+        k8s-app: kubestack
+      annotations:
+        scheduler.alpha.kubernetes.io/critical-pod: ''
+        scheduler.alpha.kubernetes.io/tolerations: |
+          [{"key": "dedicated", "value": "master", "effect": "NoSchedule" },
+           {"key":"CriticalAddonsOnly", "operator":"Exists"}]
+    spec:
+      hostNetwork: true
+      containers:
+        # This container installs the kubestack CNI binaries
+        # and CNI network config file on each node.
+        - name: install-cni
+          image: stackube/kubestack:v0.1
+          command: ["/install-cni.sh"]
+          env:
+            # The endpoint of openstack authentication.
+            - name: AUTH_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: kubestack-config
+                  key: auth-url
+            # The username for openstack authentication.
+            - name: USERNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: kubestack-config
+                  key: username
+            # The password for openstack authentication.
+            - name: PASSWORD
+              valueFrom:
+                configMapKeyRef:
+                  name: kubestack-config
+                  key: password
+            # The tenant name for openstack authentication.
+            - name: TENANT_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: kubestack-config
+                  key: tenant-name
+            # The region for openstack authentication.
+            - name: REGION
+              valueFrom:
+                configMapKeyRef:
+                  name: kubestack-config
+                  key: region
+            # The id of openstack external network.
+            - name: EXT_NET_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: kubestack-config
+                  key: ext-net-id
+            # The name of openstack neutron plugin.
+            - name: PLUGIN_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: kubestack-config
+                  key: plugin-name
+            # The name of openstack neutron integration bridge.
+            - name: INTEGRATION_BRIDGE
+              valueFrom:
+                configMapKeyRef:
+                  name: kubestack-config
+                  key: integration-bridge
+          volumeMounts:
+            - mountPath: /host/opt/cni/bin
+              name: cni-bin-dir
+            - mountPath: /host/etc/cni/net.d
+              name: cni-net-dir
+            - mountPath: /host/etc
+              name: kubestack-config-dir
+      volumes:
+        # Used to install CNI.
+        - name: cni-bin-dir
+          hostPath:
+            path: /opt/cni/bin
+        - name: cni-net-dir
+          hostPath:
+            path: /etc/cni/net.d
+        - name: kubestack-config-dir
+          hostPath:
+            path: /etc

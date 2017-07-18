@@ -13,6 +13,7 @@ import (
 	kubestacktypes "git.openstack.org/openstack/stackube/pkg/kubestack/types"
 	"git.openstack.org/openstack/stackube/pkg/openstack"
 	"git.openstack.org/openstack/stackube/pkg/util"
+
 	"github.com/containernetworking/cni/pkg/skel"
 	"github.com/containernetworking/cni/pkg/types"
 	"github.com/containernetworking/cni/pkg/types/current"
@@ -92,10 +93,16 @@ func initOpenstack(stdinData []byte) (OpenStack, string, error) {
 	if n.KubestackConfig == "" {
 		return OpenStack{}, "", fmt.Errorf("kubestack-config not specified")
 	}
-	openStackClient, err := openstack.NewClient(n.KubestackConfig)
+
+	if n.KubernetesConfig == "" {
+		return OpenStack{}, "", fmt.Errorf("kubernetes-config not specified")
+	}
+
+	openStackClient, err := openstack.NewClient(n.KubestackConfig, n.KubernetesConfig)
 	if err != nil {
 		return OpenStack{}, "", err
 	}
+
 	os := OpenStack{
 		Client: *openStackClient,
 	}

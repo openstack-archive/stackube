@@ -5,8 +5,11 @@ import (
 	"fmt"
 	"os"
 
+	crv1 "git.openstack.org/openstack/stackube/pkg/apis/v1"
+	crdClient "git.openstack.org/openstack/stackube/pkg/kubecrd"
 	drivertypes "git.openstack.org/openstack/stackube/pkg/openstack/types"
 	"git.openstack.org/openstack/stackube/pkg/util"
+
 	"github.com/docker/distribution/uuid"
 	"github.com/golang/glog"
 	"github.com/gophercloud/gophercloud"
@@ -21,6 +24,7 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/ports"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/subnets"
 	"github.com/gophercloud/gophercloud/pagination"
+
 	gcfg "gopkg.in/gcfg.v1"
 )
 
@@ -51,6 +55,7 @@ type Client struct {
 	ExtNetID          string
 	PluginName        string
 	IntegrationBridge string
+	CRDClient         *crdClient.CRDClient
 }
 
 type PluginOpts struct {
@@ -79,7 +84,7 @@ func toAuthOptions(cfg Config) gophercloud.AuthOptions {
 	}
 }
 
-func NewClient(config string) (*Client, error) {
+func NewClient(config string, kubeConfig string) (*Client, error) {
 	var opts gophercloud.AuthOptions
 	cfg, err := readConfig(config)
 	if err != nil {
@@ -118,6 +123,16 @@ func NewClient(config string) (*Client, error) {
 		return nil, err
 	}
 
+	// Create CRD client
+	k8sConfig, err := util.BuildConfig(kubeConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build kubeconfig: %v", err)
+	}
+	kubeCRDClient, err := crdClient.NewCRDClient(k8sConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create client for CRD: %v", err)
+	}
+
 	client := &Client{
 		Identity:          identity,
 		Provider:          provider,
@@ -126,6 +141,7 @@ func NewClient(config string) (*Client, error) {
 		ExtNetID:          cfg.Global.ExtNetID,
 		PluginName:        cfg.Plugin.PluginName,
 		IntegrationBridge: cfg.Plugin.IntegrationBridge,
+		CRDClient:         kubeCRDClient,
 	}
 	return client, nil
 }
@@ -147,8 +163,22 @@ func (c *Client) GetTenantIDFromName(tenantName string) (string, error) {
 	if util.IsSystemNamespace(tenantName) {
 		tenantName = util.SystemTenant
 	}
+
+	// If tenantID is specified, return it directly
+	var (
+		tenant *crv1.Tenant
+		err    error
+	)
+	if tenant, err = c.CRDClient.GetTenant(tenantName); err != nil {
+		return "", err
+	}
+	if tenant.Spec.TenantID != "" {
+		return tenant.Spec.TenantID, nil
+	}
+
+	// Otherwise, fetch tenantID from OpenStack
 	var tenantID string
-	err := tenants.List(c.Identity, nil).EachPage(func(page pagination.Page) (bool, error) {
+	err = tenants.List(c.Identity, nil).EachPage(func(page pagination.Page) (bool, error) {
 		tenantList, err1 := tenants.ExtractTenants(page)
 		if err1 != nil {
 			return false, err1
@@ -164,6 +194,9 @@ func (c *Client) GetTenantIDFromName(tenantName string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
+	glog.V(3).Infof("Got tenantID: %v for tenantName: %v", tenantID, tenantName)
+
 	return tenantID, nil
 }
 

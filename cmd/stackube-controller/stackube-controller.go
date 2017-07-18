@@ -44,8 +44,7 @@ func startControllers(kubeconfig, cloudconfig string) error {
 
 	// Creates a new RBAC controller
 	rm, err := rbacmanager.New(kubeconfig,
-		tc.GetTenantClient(),
-		nc.GetNetworkClient(),
+		tc.GetKubeCRDClient(),
 		*systemCIDR,
 		*systemGateway,
 	)
@@ -92,7 +91,7 @@ func verifyClientSetting() error {
 		return fmt.Errorf("Init kubernetes clientset failed: %v", err)
 	}
 
-	_, err = openstack.NewClient(*cloudconfig)
+	_, err = openstack.NewClient(*cloudconfig, *kubeconfig)
 	if err != nil {
 		return fmt.Errorf("Init openstack client failed: %v", err)
 	}

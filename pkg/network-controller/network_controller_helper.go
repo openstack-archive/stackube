@@ -26,18 +26,21 @@ func (c *NetworkController) addNetworkToDriver(kubeNetwork *crv1.Network) {
 	if err != nil || tenantID == "" {
 		err = wait.Poll(2*time.Second, 10*time.Second, func() (bool, error) {
 			tenantID, err = c.driver.GetTenantIDFromName(kubeNetwork.GetNamespace())
-			if err != nil || tenantID == "" {
-				glog.V(5).Infof("failed to fetch tenantID for tenantName: %v, retrying\n", tenantName)
+			if err != nil {
+				glog.Errorf("failed to fetch tenantID for tenantName: %v, error: %v retrying\n", tenantName, err)
+				return false, nil
+			}
+
+			if tenantID == "" {
+				glog.V(5).Infof("tenantID is empty for tenantName: %v, retrying\n", tenantName)
 				return false, nil
 			}
 			return true, nil
 		})
 	}
 	if err != nil || tenantID == "" {
-		glog.Errorf("failed to fetch tenantID for tenantName: %v, abort! \n", tenantName)
+		glog.Errorf("failed to fetch tenantID for tenantName: %v, error: %v abort! \n", tenantName, err)
 		return
-	} else {
-		glog.V(3).Infof("Got tenantID: %v for tenantName: %v", tenantID, tenantName)
 	}
 
 	networkName := util.BuildNetworkName(tenantName, kubeNetwork.GetName())
@@ -69,7 +72,7 @@ func (c *NetworkController) addNetworkToDriver(kubeNetwork *crv1.Network) {
 	if !check {
 		glog.Warningf("[NetworkController]: tenantID %s doesn't exist in network provider", driverNetwork.TenantID)
 		kubeNetwork.Status.State = crv1.NetworkFailed
-		c.updateNetwork(kubeNetwork)
+		c.kubeCRDClient.UpdateNetwork(kubeNetwork)
 		return
 	}
 
@@ -104,22 +107,5 @@ func (c *NetworkController) addNetworkToDriver(kubeNetwork *crv1.Network) {
 	}
 
 	kubeNetwork.Status.State = newNetworkStatus
-	c.updateNetwork(kubeNetwork)
-}
-
-// updateNetwork updates Network CRD object by given object
-func (c *NetworkController) updateNetwork(network *crv1.Network) {
-	err := c.networkClient.Put().
-		Name(network.Name).
-		Namespace(network.Namespace).
-		Resource(crv1.NetworkResourcePlural).
-		Body(network).
-		Do().
-		Error()
-
-	if err != nil {
-		glog.Errorf("ERROR updating network status: %v\n", err)
-	} else {
-		glog.V(3).Infof("UPDATED network status: %#v\n", network)
-	}
+	c.kubeCRDClient.UpdateNetwork(kubeNetwork)
 }

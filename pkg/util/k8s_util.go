@@ -23,6 +23,13 @@ func NewClusterConfig(kubeConfig string) (*rest.Config, error) {
 	return cfg, nil
 }
 
+func BuildConfig(kubeconfig string) (*rest.Config, error) {
+	if kubeconfig != "" {
+		return clientcmd.BuildConfigFromFlags("", kubeconfig)
+	}
+	return rest.InClusterConfig()
+}
+
 func WaitForCRDReady(clientset apiextensionsclient.Interface, crdName string) error {
 	err := wait.Poll(500*time.Millisecond, 60*time.Second, func() (bool, error) {
 		crd, err := clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Get(crdName, metav1.GetOptions{})

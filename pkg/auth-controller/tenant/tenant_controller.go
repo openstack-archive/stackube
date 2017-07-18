@@ -4,41 +4,32 @@ import (
 	"fmt"
 
 	crv1 "git.openstack.org/openstack/stackube/pkg/apis/v1"
-	crdClient "git.openstack.org/openstack/stackube/pkg/auth-controller/client/auth"
+	crdClient "git.openstack.org/openstack/stackube/pkg/kubecrd"
 	"git.openstack.org/openstack/stackube/pkg/openstack"
 
+	"git.openstack.org/openstack/stackube/pkg/util"
 	"github.com/golang/glog"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	apismetav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	apiv1 "k8s.io/client-go/pkg/api/v1"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
-// TenantController manages lify cycle of Tenant.
+// TenantController manages life cycle of Tenant.
 type TenantController struct {
 	k8sClient       *kubernetes.Clientset
-	tenantClient    *rest.RESTClient
-	tenantScheme    *runtime.Scheme
+	kubeCRDClient   *crdClient.CRDClient
 	openstackClient *openstack.Client
 }
 
 // NewTenantController creates a new tenant controller.
 func NewTenantController(kubeconfig, cloudconfig string) (*TenantController, error) {
-	// Create OpenStack client from config
-	openStackClient, err := openstack.NewClient(cloudconfig)
-	if err != nil {
-		return nil, fmt.Errorf("init openstack client failed: %v", err)
-	}
-
 	// Create the client config. Use kubeconfig if given, otherwise assume in-cluster.
-	config, err := buildConfig(kubeconfig)
+	config, err := util.BuildConfig(kubeconfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build kubeconfig: %v", err)
 	}
@@ -58,15 +49,14 @@ func NewTenantController(kubeconfig, cloudconfig string) (*TenantController, err
 		return nil, fmt.Errorf("failed to create kubernetes client: %v", err)
 	}
 
-	// make a new config for our extension's API group, using the first config as a baseline
-	tenantClient, tenantScheme, err := crdClient.NewClient(config)
+	// Create OpenStack client from config
+	openStackClient, err := openstack.NewClient(cloudconfig, kubeconfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create client for CRD: %v", err)
+		return nil, fmt.Errorf("init openstack client failed: %v", err)
 	}
 
 	c := &TenantController{
-		tenantClient:    tenantClient,
-		tenantScheme:    tenantScheme,
+		kubeCRDClient:   openStackClient.CRDClient,
 		k8sClient:       k8sClient,
 		openstackClient: openStackClient,
 	}
@@ -78,15 +68,8 @@ func NewTenantController(kubeconfig, cloudconfig string) (*TenantController, err
 	return c, nil
 }
 
-func buildConfig(kubeconfig string) (*rest.Config, error) {
-	if kubeconfig != "" {
-		return clientcmd.BuildConfigFromFlags("", kubeconfig)
-	}
-	return rest.InClusterConfig()
-}
-
-func (c *TenantController) GetTenantClient() *rest.RESTClient {
-	return c.tenantClient
+func (c *TenantController) GetKubeCRDClient() *crdClient.CRDClient {
+	return c.kubeCRDClient
 }
 
 // Run the controller.
@@ -94,7 +77,7 @@ func (c *TenantController) Run(stopCh <-chan struct{}) error {
 	defer utilruntime.HandleCrash()
 
 	source := cache.NewListWatchFromClient(
-		c.tenantClient,
+		c.kubeCRDClient.Client,
 		crv1.TenantResourcePlural,
 		apiv1.NamespaceAll,
 		fields.Everything())
@@ -116,11 +99,11 @@ func (c *TenantController) Run(stopCh <-chan struct{}) error {
 
 func (c *TenantController) onAdd(obj interface{}) {
 	tenant := obj.(*crv1.Tenant)
-	glog.V(3).Infof("Tenant controller received new object %v\n", tenant)
+	glog.V(3).Infof("Tenant controller received new object %#v\n", tenant)
 
-	copyObj, err := c.tenantScheme.Copy(tenant)
+	copyObj, err := c.kubeCRDClient.Scheme.Copy(tenant)
 	if err != nil {
-		glog.Errorf("ERROR creating a deep copy of tenant object: %v\n", err)
+		glog.Errorf("ERROR creating a deep copy of tenant object: %#v\n", err)
 		return
 	}
 
@@ -129,7 +112,7 @@ func (c *TenantController) onAdd(obj interface{}) {
 }
 
 func (c *TenantController) onUpdate(obj1, obj2 interface{}) {
-	glog.Warning("tenant updates is not supported yet.")
+	// glog.Warning("tenant updates is not supported yet.")
 }
 
 func (c *TenantController) onDelete(obj interface{}) {
@@ -138,7 +121,7 @@ func (c *TenantController) onDelete(obj interface{}) {
 		return
 	}
 
-	glog.V(3).Infof("Tenant controller received deleted tenant %v\n", tenant)
+	glog.V(3).Infof("Tenant controller received deleted tenant %#v\n", tenant)
 
 	deleteOptions := &apismetav1.DeleteOptions{
 		TypeMeta: apismetav1.TypeMeta{

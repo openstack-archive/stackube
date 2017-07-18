@@ -7,14 +7,11 @@ import (
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/clientcmd"
 
 	crv1 "git.openstack.org/openstack/stackube/pkg/apis/v1"
-	crdClient "git.openstack.org/openstack/stackube/pkg/network-controller/client"
+	crdClient "git.openstack.org/openstack/stackube/pkg/kubecrd"
 	osDriver "git.openstack.org/openstack/stackube/pkg/openstack"
 	"git.openstack.org/openstack/stackube/pkg/util"
 
@@ -23,20 +20,19 @@ import (
 
 // Watcher is an network of watching on resource create/update/delete events
 type NetworkController struct {
-	networkClient *rest.RESTClient
-	networkScheme *runtime.Scheme
+	kubeCRDClient *crdClient.CRDClient
 	driver        *osDriver.Client
 }
 
-func (c *NetworkController) GetNetworkClient() *rest.RESTClient {
-	return c.networkClient
+func (c *NetworkController) GetKubeCRDClient() *crdClient.CRDClient {
+	return c.kubeCRDClient
 }
 
 func (c *NetworkController) Run(stopCh <-chan struct{}) error {
 	defer utilruntime.HandleCrash()
 
 	source := cache.NewListWatchFromClient(
-		c.networkClient,
+		c.kubeCRDClient.Client,
 		crv1.NetworkResourcePlural,
 		apiv1.NamespaceAll,
 		fields.Everything())
@@ -57,22 +53,9 @@ func (c *NetworkController) Run(stopCh <-chan struct{}) error {
 	return nil
 }
 
-func buildConfig(kubeconfig string) (*rest.Config, error) {
-	if kubeconfig != "" {
-		return clientcmd.BuildConfigFromFlags("", kubeconfig)
-	}
-	return rest.InClusterConfig()
-}
-
 func NewNetworkController(kubeconfig, openstackConfigFile string) (*NetworkController, error) {
-	// Create OpenStack client from config
-	openstack, err := osDriver.NewClient(openstackConfigFile)
-	if err != nil {
-		return nil, fmt.Errorf("Couldn't initialize openstack: %#v", err)
-	}
-
 	// Create the client config. Use kubeconfig if given, otherwise assume in-cluster.
-	config, err := buildConfig(kubeconfig)
+	config, err := util.NewClusterConfig(kubeconfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build kubeconfig: %v", err)
 	}
@@ -87,15 +70,14 @@ func NewNetworkController(kubeconfig, openstackConfigFile string) (*NetworkContr
 		return nil, fmt.Errorf("failed to create CRD to kube-apiserver: %v", err)
 	}
 
-	// make a new config for our extension's API group, using the first config as a baseline
-	networkClient, networkScheme, err := crdClient.NewClient(config)
+	// Create OpenStack client from config
+	openstack, err := osDriver.NewClient(openstackConfigFile, kubeconfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create client for CRD: %v", err)
+		return nil, fmt.Errorf("Couldn't initialize openstack: %#v", err)
 	}
 
 	networkController := &NetworkController{
-		networkClient: networkClient,
-		networkScheme: networkScheme,
+		kubeCRDClient: openstack.CRDClient,
 		driver:        openstack,
 	}
 	return networkController, nil
@@ -109,7 +91,7 @@ func (c *NetworkController) onAdd(obj interface{}) {
 	// NEVER modify objects from the store. It's a read-only, local cache.
 	// You can use networkScheme.Copy() to make a deep copy of original object and modify this copy
 	// Or create a copy manually for better performance
-	copyObj, err := c.networkScheme.Copy(network)
+	copyObj, err := c.GetKubeCRDClient().Scheme.Copy(network)
 	if err != nil {
 		glog.Errorf("ERROR creating a deep copy of network object: %v\n", err)
 		return

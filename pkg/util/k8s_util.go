@@ -14,13 +14,18 @@ import (
 )
 
 func NewClusterConfig(kubeConfig string) (*rest.Config, error) {
-	cfg, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
-	if err != nil {
-		return nil, err
+	if kubeConfig != "" {
+		cfg, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
+		if err != nil {
+			return nil, err
+		}
+		cfg.QPS = 100
+		cfg.Burst = 100
+		return cfg, nil
+
+	} else {
+		return rest.InClusterConfig()
 	}
-	cfg.QPS = 100
-	cfg.Burst = 100
-	return cfg, nil
 }
 
 func WaitForCRDReady(clientset apiextensionsclient.Interface, crdName string) error {

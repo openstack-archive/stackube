@@ -8,7 +8,8 @@ import (
 
 type NetConf struct {
 	types.NetConf
-	KubestackConfig string `json:"kubestack-config"`
+	KubestackConfig  string `json:"kubestack-config"`
+	KubernetesConfig string `json:"kubernetes-config"`
 }
 
 // K8sArgs is the valid CNI_ARGS used for Kubernetes

@@ -6,6 +6,7 @@ import (
 
 	crv1 "git.openstack.org/openstack/stackube/pkg/apis/v1"
 	"git.openstack.org/openstack/stackube/pkg/auth-controller/rbacmanager/rbac"
+	crdClient "git.openstack.org/openstack/stackube/pkg/kubecrd"
 	"git.openstack.org/openstack/stackube/pkg/util"
 
 	"github.com/golang/glog"
@@ -15,7 +16,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api"
 	"k8s.io/client-go/pkg/api/v1"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 )
@@ -28,16 +28,14 @@ type Controller struct {
 	kclient       *kubernetes.Clientset
 	nsInf         cache.SharedIndexInformer
 	queue         workqueue.RateLimitingInterface
-	tenantClient  *rest.RESTClient
-	networkClient *rest.RESTClient
+	kubeCRDClient *crdClient.CRDClient
 	systemCIDR    string
 	systemGateway string
 }
 
 // New creates a new RBAC controller.
 func New(kubeconfig string,
-	tenantClient *rest.RESTClient,
-	networkClient *rest.RESTClient,
+	kubeCRDClient *crdClient.CRDClient,
 	systemCIDR string,
 	systemGateway string,
 ) (*Controller, error) {
@@ -53,8 +51,7 @@ func New(kubeconfig string,
 	o := &Controller{
 		kclient:       client,
 		queue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "rbacmanager"),
-		tenantClient:  tenantClient,
-		networkClient: networkClient,
+		kubeCRDClient: kubeCRDClient,
 		systemCIDR:    systemCIDR,
 		systemGateway: systemGateway,
 	}
@@ -157,7 +154,8 @@ func (c *Controller) handleNamespaceAdd(obj interface{}) {
 func (c *Controller) initSystemReservedTenantNetwork() error {
 	tenant := &crv1.Tenant{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: util.SystemTenant,
+			Name:      util.SystemTenant,
+			Namespace: util.SystemTenant,
 		},
 		Spec: crv1.TenantSpec{
 			UserName: util.SystemTenant,
@@ -165,13 +163,8 @@ func (c *Controller) initSystemReservedTenantNetwork() error {
 		},
 	}
 
-	err := c.tenantClient.Post().
-		Namespace(util.SystemTenant).
-		Resource(crv1.TenantResourcePlural).
-		Body(tenant).
-		Do().Error()
-	if err != nil && !apierrors.IsAlreadyExists(err) {
-		return fmt.Errorf("failed to create system Tenant: %v", err)
+	if err := c.kubeCRDClient.AddTenant(tenant); err != nil {
+		return err
 	}
 
 	// NOTE(harry): we do not support update Network, so although configurable,
@@ -179,7 +172,8 @@ func (c *Controller) initSystemReservedTenantNetwork() error {
 	// that system network. We may need to document this.
 	network := &crv1.Network{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: util.SystemNetwork,
+			Name:      util.SystemNetwork,
+			Namespace: util.SystemTenant,
 		},
 		Spec: crv1.NetworkSpec{
 			CIDR:    c.systemCIDR,
@@ -188,13 +182,8 @@ func (c *Controller) initSystemReservedTenantNetwork() error {
 	}
 
 	// network controller will always check if Tenant is ready so we will not wait here
-	err = c.networkClient.Post().
-		Resource(crv1.NetworkResourcePlural).
-		Namespace(util.SystemTenant).
-		Body(network).
-		Do().Error()
-	if err != nil && !apierrors.IsAlreadyExists(err) {
-		return fmt.Errorf("failed to create system Network: %v", err)
+	if err := c.kubeCRDClient.AddNetwork(network); err != nil {
+		return err
 	}
 
 	return nil

@@ -1,0 +1,87 @@
+# This ConfigMap is used to configure a self-hosted kubestack installation.
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: kubestack-config
+  namespace: kube-system
+data:
+  # The kubestack configuration to install on each node.
+  kubestack_config: |-
+    [Global]
+    auth-url = https://10.140.0.3:5000/identity_admin/v2.0
+    username = admin
+    password = password
+    tenant-name = admin
+    region = RegionOne
+    ext-net-id = <Your-external-network-id>
+    [Plugin]
+    plugin-name = ovs
+    integration-bridge = br-int
+
+---
+
+# This manifest installs kubestack CNI plugins and network config
+# on each master and worker node in a Kubernetes cluster.
+kind: DaemonSet
+apiVersion: extensions/v1beta1
+metadata:
+  name: kubestack
+  namespace: kube-system
+  labels:
+    k8s-app: kubestack
+spec:
+  selector:
+    matchLabels:
+      k8s-app: kubestack
+  template:
+    metadata:
+      labels:
+        k8s-app: kubestack
+      annotations:
+        scheduler.alpha.kubernetes.io/critical-pod: ''
+        scheduler.alpha.kubernetes.io/tolerations: |
+          [{"key": "dedicated", "value": "master", "effect": "NoSchedule" },
+           {"key":"CriticalAddonsOnly", "operator":"Exists"}]
+    spec:
+      hostNetwork: true
+      serviceAccountName: kubestack
+      containers:
+        # This container installs the kubestack CNI binaries
+        # and CNI network config file on each node.
+        - name: install-cni
+          image: stackube/kubestack:v0.1
+        #  imagePullPolicy: Never
+          command: ["/install-cni.sh"]
+          env:
+            # The kubestack config to install on each node.
+            - name: KUBESTACK_CONFIG
+              valueFrom:
+                configMapKeyRef:
+                  name: kubestack-config
+                  key: kubestack_config
+          volumeMounts:
+            - mountPath: /host/opt/cni/bin
+              name: cni-bin-dir
+            - mountPath: /host/etc/cni/net.d
+              name: cni-net-dir
+            - mountPath: /host/etc
+              name: kubestack-config-dir
+      volumes:
+        # Used to install CNI.
+        - name: cni-bin-dir
+          hostPath:
+            path: /opt/cni/bin
+        - name: cni-net-dir
+          hostPath:
+            path: /etc/cni/net.d
+        - name: kubestack-config-dir
+          hostPath:
+            path: /etc
+
+---
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubestack
+  namespace: kube-system

@@ -137,6 +137,13 @@ func (c *TenantController) onDelete(obj interface{}) {
 		glog.V(4).Infof("Deleted ClusterRoleBinding %s", tenantName)
 	}
 
+	// Delete automatically created network
+	// TODO(harry) so that we can not deal with network with different name and namespace,
+	// we need to document that.
+	if err := c.kubeCRDClient.DeleteNetork(tenantName); err != nil {
+		glog.Errorf("failed to delete network for tenant: %v", tenantName)
+	}
+
 	//Delete namespace
 	err = c.deleteNamespace(tenantName)
 	if err != nil {

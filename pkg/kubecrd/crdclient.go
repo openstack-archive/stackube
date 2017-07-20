@@ -9,6 +9,8 @@ import (
 	"k8s.io/client-go/rest"
 
 	crv1 "git.openstack.org/openstack/stackube/pkg/apis/v1"
+	"git.openstack.org/openstack/stackube/pkg/util"
+
 	"github.com/golang/glog"
 )
 
@@ -61,7 +63,7 @@ func (c *CRDClient) UpdateNetwork(network *crv1.Network) {
 func (c *CRDClient) UpdateTenant(tenant *crv1.Tenant) {
 	err := c.Client.Put().
 		Name(tenant.Name).
-		Namespace(tenant.Namespace).
+		Namespace(util.SystemTenant).
 		Resource(crv1.TenantResourcePlural).
 		Body(tenant).
 		Do().
@@ -74,12 +76,14 @@ func (c *CRDClient) UpdateTenant(tenant *crv1.Tenant) {
 	}
 }
 
+// GetTenant returns tenant from CRD
+// NOTE: all tenant are stored under system namespace
 func (c *CRDClient) GetTenant(tenantName string) (*crv1.Tenant, error) {
 	tenant := crv1.Tenant{}
 	// tenant always has same name and namespace
 	err := c.Client.Get().
 		Resource(crv1.TenantResourcePlural).
-		Namespace(tenantName).
+		Namespace(util.SystemTenant).
 		Name(tenantName).
 		Do().Into(&tenant)
 	if err != nil {
@@ -88,9 +92,11 @@ func (c *CRDClient) GetTenant(tenantName string) (*crv1.Tenant, error) {
 	return &tenant, nil
 }
 
+// AddTenant adds tenant to CRD
+// NOTE: all tenant are added to system namespace
 func (c *CRDClient) AddTenant(tenant *crv1.Tenant) error {
 	err := c.Client.Post().
-		Namespace(tenant.GetNamespace()).
+		Namespace(util.SystemTenant).
 		Resource(crv1.TenantResourcePlural).
 		Body(tenant).
 		Do().Error()
@@ -108,6 +114,19 @@ func (c *CRDClient) AddNetwork(network *crv1.Network) error {
 		Do().Error()
 	if err != nil && !apierrors.IsAlreadyExists(err) {
 		return fmt.Errorf("failed to create Network: %v", err)
+	}
+	return nil
+}
+
+func (c *CRDClient) DeleteNetork(namespace string) error {
+	// NOTE: the automatically created network for tenant use namespace as name
+	err := c.Client.Delete().
+		Resource(crv1.NetworkResourcePlural).
+		Namespace(namespace).
+		Name(namespace).
+		Do().Error()
+	if err != nil {
+		return fmt.Errorf("failed to delete Network: %v", err)
 	}
 	return nil
 }

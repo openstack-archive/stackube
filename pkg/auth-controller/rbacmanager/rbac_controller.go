@@ -31,13 +31,17 @@ type Controller struct {
 	kubeCRDClient *crdClient.CRDClient
 	systemCIDR    string
 	systemGateway string
+	userCIDR      string
+	userGateway   string
 }
 
 // New creates a new RBAC controller.
-func New(kubeconfig string,
+func NewRBACController(kubeconfig string,
 	kubeCRDClient *crdClient.CRDClient,
 	systemCIDR string,
 	systemGateway string,
+	userCIDR string,
+	userGateway string,
 ) (*Controller, error) {
 	cfg, err := util.NewClusterConfig(kubeconfig)
 	if err != nil {
@@ -54,6 +58,8 @@ func New(kubeconfig string,
 		kubeCRDClient: kubeCRDClient,
 		systemCIDR:    systemCIDR,
 		systemGateway: systemGateway,
+		userCIDR:      userCIDR,
+		userGateway:   userGateway,
 	}
 
 	o.nsInf = cache.NewSharedIndexInformer(
@@ -146,15 +152,45 @@ func (c *Controller) handleNamespaceAdd(obj interface{}) {
 			glog.Error(err)
 			return
 		}
+	} else {
+		if err := c.createNetworkForTenant(key); err != nil {
+			glog.Error(err)
+			return
+		}
 	}
+
 	glog.V(4).Infof("Added namespace %s", key)
 	c.enqueue(key)
 }
 
+// createNetworkForTenant automatically create network for given non-system tenant
+func (c *Controller) createNetworkForTenant(namespace string) error {
+	network := &crv1.Network{
+		ObjectMeta: metav1.ObjectMeta{
+			// use the namespace name as network
+			Name:      namespace,
+			Namespace: namespace,
+		},
+		Spec: crv1.NetworkSpec{
+			CIDR:    c.userCIDR,
+			Gateway: c.userGateway,
+		},
+	}
+
+	// network controller will always check if Tenant is ready so we will not wait here
+	if err := c.kubeCRDClient.AddNetwork(network); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// initSystemReservedTenantNetwork automatically create tenant network for system namespace
 func (c *Controller) initSystemReservedTenantNetwork() error {
 	tenant := &crv1.Tenant{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      util.SystemTenant,
+			Name: util.SystemTenant,
+			// always add tenant to system namespace
 			Namespace: util.SystemTenant,
 		},
 		Spec: crv1.TenantSpec{
@@ -194,6 +230,7 @@ func (c *Controller) handleNamespaceDelete(obj interface{}) {
 	if !ok {
 		return
 	}
+
 	glog.V(4).Infof("Deleted namespace %s", key)
 	c.enqueue(key)
 }

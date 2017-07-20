@@ -30,7 +30,7 @@ func (c *TenantController) syncTenant(tenant *crv1.Tenant) {
 		// Create tenant if the tenant not exist in keystone
 		tenantID, err := c.openstackClient.CreateTenant(tenant.Name)
 		if err != nil {
-			glog.Errorf("Failed create tenant %s: %v", tenant, err)
+			glog.Errorf("Failed create tenant %#v: %v", tenant, err)
 			return
 		}
 		// Create user with the spec username and password in the created tenant

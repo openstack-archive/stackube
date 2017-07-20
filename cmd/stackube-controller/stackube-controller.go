@@ -24,8 +24,8 @@ var (
 		"path to kubernetes admin config file")
 	cloudconfig = pflag.String("cloudconfig", "/etc/stackube.conf",
 		"path to stackube config file")
-	systemCIDR    = pflag.String("system-cidr", "10.10.10.10/24", "system Pod network CIDR")
-	systemGateway = pflag.String("system-gateway", "10.10.10.1", "system Pod network gateway")
+	userCIDR    = pflag.String("user-cidr", "10.244.0.0/16", "user Pod network CIDR")
+	userGateway = pflag.String("user-gateway", "10.244.0.1", "user Pod network gateway")
 )
 
 func startControllers(kubeconfig, cloudconfig string) error {
@@ -43,10 +43,10 @@ func startControllers(kubeconfig, cloudconfig string) error {
 	}
 
 	// Creates a new RBAC controller
-	rm, err := rbacmanager.New(kubeconfig,
+	rm, err := rbacmanager.NewRBACController(kubeconfig,
 		tc.GetKubeCRDClient(),
-		*systemCIDR,
-		*systemGateway,
+		*userCIDR,
+		*userGateway,
 	)
 	if err != nil {
 		return err

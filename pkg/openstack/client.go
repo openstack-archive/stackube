@@ -67,7 +67,7 @@ type Config struct {
 	Global struct {
 		AuthUrl    string `gcfg:"auth-url"`
 		Username   string `gcfg:"username"`
-		Password   string `gcfg: "password"`
+		Password   string `gcfg:"password"`
 		TenantName string `gcfg:"tenant-name"`
 		Region     string `gcfg:"region"`
 		ExtNetID   string `gcfg:"ext-net-id"`
@@ -417,8 +417,6 @@ func (os *Client) ToProviderStatus(status string) string {
 	default:
 		return "Failed"
 	}
-
-	return "Failed"
 }
 
 // Create network

@@ -42,13 +42,14 @@ build: depend
 	cd $(DEST)
 	go build $(GOFLAGS) -a -o $(OUTPUT)/stackube-controller ./cmd/stackube-controller
 	go build $(GOFLAGS) -a -o $(OUTPUT)/kubestack -ldflags "-X main.VERSION=$(KUBESTACK_VERSION) -s -w" ./cmd/kubestack
+	go build $(GOFLAGS) -a -o $(OUTPUT)/stackube-proxy ./cmd/stackube-proxy
 
 .PHONY: install
 install: depend
 	cd $(DEST)
 	install -D -m 755 $(OUTPUT)/stackube-controller /usr/local/bin/stackube-controller
+	install -D -m 755 $(OUTPUT)/stackube-proxy /usr/local/bin/stackube-proxy
 	install -D -m 755 $(OUTPUT)/kubestack /opt/cni/bin/kubestack
-	kubectl create -f ./deployment/kubestack/kubestack.yaml
 
 .PHONY: docker
 docker: depend
@@ -130,7 +131,7 @@ install-distro-packages:
 	tools/install-distro-packages.sh
 
 clean:
-	rm -rf .bindep
+	rm -rf .bindep $(OUTPUT)
 
 realclean: clean
 	rm -rf vendor

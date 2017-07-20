@@ -42,6 +42,8 @@ const (
 )
 
 // Network describes a Neutron network.
+// +k8s:deepcopy-gen=true
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type Network struct {
 	// TypeMeta defines type of the object and its API schema version.
 	metav1.TypeMeta `json:",inline"`
@@ -74,6 +76,8 @@ type NetworkStatus struct {
 }
 
 // NetworkList is a list of networks.
+// +k8s:deepcopy-gen=true
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type NetworkList struct {
 	// TypeMeta defines type of the object and its API schema version.
 	metav1.TypeMeta `json:",inline"`
@@ -84,6 +88,8 @@ type NetworkList struct {
 }
 
 // Tenant describes a Keystone tenant.
+// +k8s:deepcopy-gen=true
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type Tenant struct {
 	// TypeMeta defines type of the object and its API schema version.
 	metav1.TypeMeta `json:",inline"`
@@ -116,6 +122,8 @@ type TenantStatus struct {
 }
 
 // TenantList is a list of tenants.
+// +k8s:deepcopy-gen=true
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type TenantList struct {
 	// TypeMeta defines type of the object and its API schema version.
 	metav1.TypeMeta `json:",inline"`

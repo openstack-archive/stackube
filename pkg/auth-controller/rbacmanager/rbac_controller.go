@@ -154,7 +154,8 @@ func (c *Controller) handleNamespaceAdd(obj interface{}) {
 func (c *Controller) initSystemReservedTenantNetwork() error {
 	tenant := &crv1.Tenant{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      util.SystemTenant,
+			Name: util.SystemTenant,
+			// always add tenant to system namespace
 			Namespace: util.SystemTenant,
 		},
 		Spec: crv1.TenantSpec{

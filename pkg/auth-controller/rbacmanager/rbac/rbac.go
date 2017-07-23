@@ -1,8 +1,8 @@
 package rbac
 
 import (
+	"k8s.io/api/rbac/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/pkg/apis/rbac/v1beta1"
 )
 
 func GenerateRoleByNamespace(namespace string) *v1beta1.Role {

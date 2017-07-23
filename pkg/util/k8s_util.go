@@ -13,19 +13,29 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-func NewClusterConfig(kubeConfig string) (*rest.Config, error) {
-	if kubeConfig != "" {
-		cfg, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
-		if err != nil {
-			return nil, err
-		}
-		cfg.QPS = 100
-		cfg.Burst = 100
-		return cfg, nil
+const (
+	defaultQPS   = 100
+	defaultBurst = 100
+)
 
+// NewClusterConfig builds a kubernetes cluster config.
+func NewClusterConfig(kubeConfig string) (*rest.Config, error) {
+	var cfg *rest.Config
+	var err error
+
+	if kubeConfig != "" {
+		cfg, err = clientcmd.BuildConfigFromFlags("", kubeConfig)
 	} else {
-		return rest.InClusterConfig()
+		cfg, err = rest.InClusterConfig()
 	}
+	if err != nil {
+		return nil, err
+	}
+
+	// Setup default QPS and burst.
+	cfg.QPS = defaultQPS
+	cfg.Burst = defaultBurst
+	return cfg, nil
 }
 
 func WaitForCRDReady(clientset apiextensionsclient.Interface, crdName string) error {

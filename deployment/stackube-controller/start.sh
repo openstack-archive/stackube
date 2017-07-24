@@ -1,0 +1,39 @@
+#!/bin/bash
+# Ensure all variables are defined.
+set -u
+
+TMP_CONF='/stackube.conf.tmp'
+# Check environment variables before any real actions.
+for i in 'AUTH_URL' 'USERNAME' 'PASSWORD' 'TENANT_NAME' 'REGION' 'EXT_NET_ID';do
+	if [ "${!i}" ];then
+	 echo "environment variable $i = ${!i}"
+	else
+	 echo "environment variable $i is empty,exit..."
+	 exit
+	fi
+done
+
+# Insert parameters.
+sed -i s~_AUTH_URL_~${AUTH_URL:-}~g $TMP_CONF
+sed -i s/_USERNAME_/${USERNAME:-}/g $TMP_CONF
+sed -i s/_PASSWORD_/${PASSWORD:-}/g $TMP_CONF
+sed -i s/_TENANT_NAME_/${TENANT_NAME:-}/g $TMP_CONF
+sed -i s/_REGION_/${REGION:-}/g $TMP_CONF
+sed -i s/_EXT_NET_ID_/${EXT_NET_ID:-}/g $TMP_CONF
+
+# Move the temporary stackube config into place.
+STACKUBE_CONFIG_PATH='/etc/stackube.conf'
+mv $TMP_CONF $STACKUBE_CONFIG_PATH
+echo "Wrote stackube config: $(cat ${STACKUBE_CONFIG_PATH})"
+
+if [ -z $USER_CIDR ];then
+	echo "environment variable USER_CIDR is empty,use default value \"10.244.0.0/16\""
+	USER_CIDR='10.244.0.0/16'
+fi
+
+if [ -z $USER_GATEWAY ];then
+	echo "environment variable USER_GATEWAY is empty,use default value \"10.244.0.1\""
+	USER_GATEWAY='10.244.0.1'
+fi
+
+./stackube-controller --kubeconfig="" --user-cidr=${USER_CIDR} --user-gateway=${USER_GATEWAY}

@@ -7,7 +7,8 @@
 GIT_HOST = git.openstack.org
 SHELL := /bin/bash
 
-KUBESTACK_VERSION=0.1
+STACKUBE_VERSION = v1.0
+KUBESTACK_VERSION = 0.1
 
 PWD := $(shell pwd)
 BASE_DIR := $(shell basename $(PWD))
@@ -54,8 +55,10 @@ install: depend
 .PHONY: docker
 docker: depend
 	cd $(DEST)
-	KUBESTACK_VERSION?=$(shell ./$(OUTPUT)/kubestack -v)
-	docker build -t stackube/kubestack:v$(KUBESTACK_VERSION) ./deployment/kubestack/
+	cp _output/kubestack deployment/kubestack
+	sudo docker build -t stackube/kubestack:v$(KUBESTACK_VERSION) ./deployment/kubestack/
+	cp _output/stackube-controller deployment/stackube-controller
+	sudo docker build -t stackube/stackube-controller:$(STACKUBE_VERSION) ./deployment/stackube-controller/
 
 .PHONY: test
 test: test-unit

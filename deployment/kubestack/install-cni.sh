@@ -34,7 +34,7 @@ for i in 'AUTH_URL' 'USERNAME' 'PASSWORD' 'TENANT_NAME' 'REGION' 'EXT_NET_ID' 'P
 	if [ "${!i}" ];then
 	 echo "environment variable $i = ${!i}"
 	else
-	 echo "environment variable $i has not been setted or is empty,exit..."
+	 echo "environment variable $i is empty,exit..."
 	 exit
 	fi
 done

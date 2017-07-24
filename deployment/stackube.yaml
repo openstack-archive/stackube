@@ -1,0 +1,302 @@
+# Copyright (c) 2017 OpenStack Foundation.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# This ConfigMap is used to configure stackube-controller and kubestack.
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: stackube-config
+  namespace: kube-system
+data:
+  auth-url: "<Your-openstack-authentication-endpoint>"
+  username: "admin"
+  password: "password"
+  tenant-name: "admin"
+  region: "RegionOne"
+  ext-net-id: "<Your-external-network-id>"
+  plugin-name: "ovs"
+  integration-bridge: "br-int"
+  user-cidr: "10.244.0.0/16"
+  user-gateway: "10.244.0.1"
+  kubernetes-host: "<Your-external-kubernetes-host>"
+  kubernetes-port: "<Your-external-kubernetes-port>"
+
+---
+
+# This manifest installs kubestack CNI plugins and network config
+# on each master and worker node in a Kubernetes cluster.
+kind: DaemonSet
+apiVersion: extensions/v1beta1
+metadata:
+  name: kubestack
+  namespace: kube-system
+  labels:
+    k8s-app: kubestack
+spec:
+  selector:
+    matchLabels:
+      k8s-app: kubestack
+  template:
+    metadata:
+      labels:
+        k8s-app: kubestack
+      annotations:
+        scheduler.alpha.kubernetes.io/critical-pod: ''
+        scheduler.alpha.kubernetes.io/tolerations: |
+          [{"key": "dedicated", "value": "master", "effect": "NoSchedule" },
+           {"key":"CriticalAddonsOnly", "operator":"Exists"}]
+    spec:
+      hostNetwork: true
+      containers:
+        # This container installs the kubestack CNI binaries
+        # and CNI network config file on each node.
+        - name: install-cni
+          image: stackube/kubestack:v0.1
+          command: ["/install-cni.sh"]
+          env:
+            # The endpoint of openstack authentication.
+            - name: AUTH_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: stackube-config
+                  key: auth-url
+            # The username for openstack authentication.
+            - name: USERNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: stackube-config
+                  key: username
+            # The password for openstack authentication.
+            - name: PASSWORD
+              valueFrom:
+                configMapKeyRef:
+                  name: stackube-config
+                  key: password
+            # The tenant name for openstack authentication.
+            - name: TENANT_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: stackube-config
+                  key: tenant-name
+            # The region for openstack authentication.
+            - name: REGION
+              valueFrom:
+                configMapKeyRef:
+                  name: stackube-config
+                  key: region
+            # The id of openstack external network.
+            - name: EXT_NET_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: stackube-config
+                  key: ext-net-id
+            # The name of openstack neutron plugin.
+            - name: PLUGIN_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: stackube-config
+                  key: plugin-name
+            # The name of openstack neutron integration bridge.
+            - name: INTEGRATION_BRIDGE
+              valueFrom:
+                configMapKeyRef:
+                  name: stackube-config
+                  key: integration-bridge
+          volumeMounts:
+            - mountPath: /host/opt/cni/bin
+              name: cni-bin-dir
+            - mountPath: /host/etc/cni/net.d
+              name: cni-net-dir
+            - mountPath: /host/etc
+              name: kubestack-config-dir
+      volumes:
+        # Used to install CNI.
+        - name: cni-bin-dir
+          hostPath:
+            path: /opt/cni/bin
+        - name: cni-net-dir
+          hostPath:
+            path: /etc/cni/net.d
+        - name: kubestack-config-dir
+          hostPath:
+            path: /etc
+
+---
+
+# This manifest deploys the stackube-controller on Kubernetes.
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: stackube-controller
+  namespace: kube-system
+  labels:
+    k8s-app: stackube-controller
+  annotations:
+    scheduler.alpha.kubernetes.io/critical-pod: ''
+    scheduler.alpha.kubernetes.io/tolerations: |
+      [{"key": "dedicated", "value": "master", "effect": "NoSchedule" },
+       {"key":"CriticalAddonsOnly", "operator":"Exists"}]
+spec:
+  # The stackube-controller can only have a single active instance.
+  replicas: 1
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      name: stackube-controller
+      namespace: kube-system
+      labels:
+        k8s-app: stackube-controller
+    spec:
+      # The stackube controller run in the host network namespace for the moment
+      hostNetwork: true
+      serviceAccountName: stackube-controller
+      containers:
+        - name: stackube-controller
+          image: stackube/stackube-controller:v0.1
+          command: ["/start.sh"]
+          env:
+            # The endpoint of openstack authentication.
+            - name: AUTH_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: stackube-config
+                  key: auth-url
+            # The username for openstack authentication.
+            - name: USERNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: stackube-config
+                  key: username
+            # The password for openstack authentication.
+            - name: PASSWORD
+              valueFrom:
+                configMapKeyRef:
+                  name: stackube-config
+                  key: password
+            # The tenant name for openstack authentication.
+            - name: TENANT_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: stackube-config
+                  key: tenant-name
+            # The region for openstack authentication.
+            - name: REGION
+              valueFrom:
+                configMapKeyRef:
+                  name: stackube-config
+                  key: region
+            # The id of openstack external network.
+            - name: EXT_NET_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: stackube-config
+                  key: ext-net-id
+            # The network cidr of user pod.
+            - name: USER_CIDR
+              valueFrom:
+                configMapKeyRef:
+                  name: stackube-config
+                  key: user-cidr
+            # The network gateway of user pod.
+            - name: USER_GATEWAY
+              valueFrom:
+                configMapKeyRef:
+                  name: stackube-config
+                  key: user-gateway
+            # The kubernetes external service host.
+            - name: KUBERNETES_SERVICE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: stackube-config
+                  key: kubernetes-host
+            # The kubernetes external service port.
+            - name: KUBERNETES_SERVICE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: stackube-config
+                  key: kubernetes-port
+          volumeMounts:
+            - mountPath: /etc/ssl/certs
+              name: certs
+            - mountPath: /etc/pki
+              name: pki
+      volumes:
+        # Used to verify the keystone server.
+        - name: certs
+          hostPath:
+            path: /etc/ssl/certs
+        - name: pki
+          hostPath:
+            path: /etc/pki
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: stackube-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: stackube-controller
+subjects:
+- kind: ServiceAccount
+  name: stackube-controller
+  namespace: kube-system
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: stackube-controller
+rules:
+- apiGroups:
+  - "*"
+  resources:
+  - namespaces
+  - services
+  - services/status
+  - endpoints
+  verbs:
+  - "*"
+- apiGroups:
+  - apiextensions.k8s.io
+  resources:
+  - customresourcedefinitions
+  verbs:
+  - create
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - clusterroles
+  - clusterrolebindings
+  verbs:
+  - create
+- apiGroups:
+  - stackube.kubernetes.io
+  resources:
+  - tenants
+  - networks
+  verbs:
+  - "*"
+
+---
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: stackube-controller
+  namespace: kube-system

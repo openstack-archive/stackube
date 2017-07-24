@@ -12,14 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM busybox:1.26.2
+FROM alpine:3.6
 
 MAINTAINER stackube team
 
-ADD _output/kubestack /opt/cni/bin/kubestack
-ADD deployment/kubestack/install-cni.sh /install-cni.sh
-ADD deployment/kubestack/10-kubestack.conf /etc/cni/net.d/10-kubestack.conf
-ADD deployment/kubestack/kubestack.conf.default /kubestack.conf.tmp
+RUN apk --no-cache add bash
+ADD kubestack /opt/cni/bin/kubestack
+ADD install-cni.sh /install-cni.sh
+ADD 10-kubestack.conf /etc/cni/net.d/10-kubestack.conf
+ADD kubestack.conf.default /kubestack.conf.tmp
 
 ENV PATH=$PATH:/opt/cni/bin
 VOLUME /opt/cni

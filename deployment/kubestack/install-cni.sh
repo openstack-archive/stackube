@@ -45,10 +45,10 @@ TMP_CONF='/kubestack.conf.tmp'
 # Check environment variables before any real actions.
 for i in 'AUTH_URL' 'USERNAME' 'PASSWORD' 'TENANT_NAME' 'REGION' 'EXT_NET_ID' 'PLUGIN_NAME' 'INTEGRATION_BRIDGE';do
 	if [ "${!i}" ];then
-	 echo "environment variable $i = ${!i}"
+		echo "environment variable $i = ${!i}"
 	else
-	 echo "environment variable $i has not been setted or is empty,exit..."
-	 exit
+		echo "environment variable $i is empty, exit..."
+		exit
 	fi
 done
 

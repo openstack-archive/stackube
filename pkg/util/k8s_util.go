@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"k8s.io/api/core/v1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -66,4 +67,39 @@ func WaitForCRDReady(clientset apiextensionsclient.Interface, crdName string) er
 		return err
 	}
 	return nil
+}
+
+func LoadBalancerStatusDeepCopy(lb *v1.LoadBalancerStatus) *v1.LoadBalancerStatus {
+	c := &v1.LoadBalancerStatus{}
+	c.Ingress = make([]v1.LoadBalancerIngress, len(lb.Ingress))
+	for i := range lb.Ingress {
+		c.Ingress[i] = lb.Ingress[i]
+	}
+	return c
+}
+
+func LoadBalancerStatusEqual(l, r *v1.LoadBalancerStatus) bool {
+	return ingressSliceEqual(l.Ingress, r.Ingress)
+}
+
+func ingressSliceEqual(lhs, rhs []v1.LoadBalancerIngress) bool {
+	if len(lhs) != len(rhs) {
+		return false
+	}
+	for i := range lhs {
+		if !ingressEqual(&lhs[i], &rhs[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+func ingressEqual(lhs, rhs *v1.LoadBalancerIngress) bool {
+	if lhs.IP != rhs.IP {
+		return false
+	}
+	if lhs.Hostname != rhs.Hostname {
+		return false
+	}
+	return true
 }

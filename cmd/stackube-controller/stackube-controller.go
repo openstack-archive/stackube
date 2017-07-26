@@ -11,12 +11,15 @@ import (
 	"git.openstack.org/openstack/stackube/pkg/auth-controller/tenant"
 	"git.openstack.org/openstack/stackube/pkg/network-controller"
 	"git.openstack.org/openstack/stackube/pkg/openstack"
+	"git.openstack.org/openstack/stackube/pkg/service-controller"
 	"git.openstack.org/openstack/stackube/pkg/util"
+
+	extclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	"k8s.io/client-go/kubernetes"
 
 	"github.com/golang/glog"
 	"github.com/spf13/pflag"
 	"golang.org/x/sync/errgroup"
-	"k8s.io/client-go/kubernetes"
 )
 
 var (
@@ -28,26 +31,28 @@ var (
 	userGateway = pflag.String("user-gateway", "10.244.0.1", "user Pod network gateway")
 )
 
-func startControllers(kubeconfig, cloudconfig string) error {
+func startControllers(kubeClient *kubernetes.Clientset,
+	osClient *openstack.Client, kubeExtClient *extclientset.Clientset) error {
 	// Creates a new Tenant controller
-	tc, err := tenant.NewTenantController(kubeconfig, cloudconfig)
+	tenantController, err := tenant.NewTenantController(kubeClient, osClient, kubeExtClient)
 	if err != nil {
 		return err
 	}
 
 	// Creates a new Network controller
-	nc, err := network.NewNetworkController(
-		kubeconfig, cloudconfig)
+	networkController, err := network.NewNetworkController(osClient, kubeExtClient)
 	if err != nil {
 		return err
 	}
 
 	// Creates a new RBAC controller
-	rm, err := rbacmanager.NewRBACController(kubeconfig,
-		tc.GetKubeCRDClient(),
-		*userCIDR,
-		*userGateway,
-	)
+	rbacController, err := rbacmanager.NewRBACController(kubeClient, osClient.CRDClient, *userCIDR, *userGateway)
+	if err != nil {
+		return err
+	}
+
+	// Creates a new service controller
+	serviceController, err := service.NewServiceController(kubeClient, osClient)
 	if err != nil {
 		return err
 	}
@@ -56,11 +61,14 @@ func startControllers(kubeconfig, cloudconfig string) error {
 	wg, ctx := errgroup.WithContext(ctx)
 
 	// start auth controllers in stackube
-	wg.Go(func() error { return tc.Run(ctx.Done()) })
-	wg.Go(func() error { return rm.Run(ctx.Done()) })
+	wg.Go(func() error { return tenantController.Run(ctx.Done()) })
+	wg.Go(func() error { return rbacController.Run(ctx.Done()) })
 
 	// start network controller
-	wg.Go(func() error { return nc.Run(ctx.Done()) })
+	wg.Go(func() error { return networkController.Run(ctx.Done()) })
+
+	// start service controller
+	wg.Go(func() error { return serviceController.Run(ctx.Done()) })
 
 	term := make(chan os.Signal)
 	signal.Notify(term, os.Interrupt, syscall.SIGTERM)
@@ -80,23 +88,28 @@ func startControllers(kubeconfig, cloudconfig string) error {
 	return nil
 }
 
-func verifyClientSetting() error {
+func initClients() (*kubernetes.Clientset, *openstack.Client, *extclientset.Clientset, error) {
+	// Create kubernetes client config. Use kubeconfig if given, otherwise assume in-cluster.
 	config, err := util.NewClusterConfig(*kubeconfig)
 	if err != nil {
-		return fmt.Errorf("Init kubernetes cluster failed: %v", err)
+		return nil, nil, nil, fmt.Errorf("failed to build kubeconfig: %v", err)
 	}
-
-	_, err = kubernetes.NewForConfig(config)
+	kubeClient, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		return fmt.Errorf("Init kubernetes clientset failed: %v", err)
+		return nil, nil, nil, fmt.Errorf("failed to create kubernetes clientset: %v", err)
 	}
-
-	_, err = openstack.NewClient(*cloudconfig, *kubeconfig)
+	kubeExtClient, err := extclientset.NewForConfig(config)
 	if err != nil {
-		return fmt.Errorf("Init openstack client failed: %v", err)
+		return nil, nil, nil, fmt.Errorf("failed to create kubernetes apiextensions clientset: %v", err)
 	}
 
-	return nil
+	// Create OpenStack client from config file.
+	osClient, err := openstack.NewClient(*cloudconfig, *kubeconfig)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("could't initialize openstack client: %v", err)
+	}
+
+	return kubeClient, osClient, kubeExtClient, nil
 }
 
 func main() {
@@ -104,14 +117,14 @@ func main() {
 	util.InitLogs()
 	defer util.FlushLogs()
 
-	// Verify client setting at the beginning and fail early if there are errors.
-	err := verifyClientSetting()
+	// Initilize kubernetes and openstack clients.
+	kubeClient, osClient, kubeExtClient, err := initClients()
 	if err != nil {
 		glog.Fatal(err)
 	}
 
 	// Start stackube controllers.
-	if err := startControllers(*kubeconfig, *cloudconfig); err != nil {
+	if err := startControllers(kubeClient, osClient, kubeExtClient); err != nil {
 		glog.Fatal(err)
 	}
 }

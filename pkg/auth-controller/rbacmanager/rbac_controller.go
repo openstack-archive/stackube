@@ -34,22 +34,10 @@ type Controller struct {
 }
 
 // New creates a new RBAC controller.
-func NewRBACController(kubeconfig string,
-	kubeCRDClient *crdClient.CRDClient,
-	userCIDR string,
-	userGateway string,
-) (*Controller, error) {
-	cfg, err := util.NewClusterConfig(kubeconfig)
-	if err != nil {
-		return nil, fmt.Errorf("init cluster config failed: %v", err)
-	}
-	client, err := kubernetes.NewForConfig(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("init kubernetes client failed: %v", err)
-	}
-
+func NewRBACController(kubeClient *kubernetes.Clientset, kubeCRDClient *crdClient.CRDClient, userCIDR string,
+	userGateway string) (*Controller, error) {
 	o := &Controller{
-		kclient:       client,
+		kclient:       kubeClient,
 		queue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "rbacmanager"),
 		kubeCRDClient: kubeCRDClient,
 		userCIDR:      userCIDR,

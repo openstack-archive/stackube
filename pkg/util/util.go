@@ -2,6 +2,7 @@ package util
 
 import (
 	"errors"
+
 	apiv1 "k8s.io/api/core/v1"
 )
 
@@ -19,7 +20,8 @@ var ErrMultipleResults = errors.New("MultipleResults")
 
 func BuildNetworkName(namespace, name string) string {
 	if IsSystemNamespace(namespace) {
-		namespace = SystemTenant
+		// All system namespaces shares same network.
+		return namePrefix + "-" + SystemTenant + "-" + SystemTenant
 	}
 	return namePrefix + "-" + namespace + "-" + name
 }

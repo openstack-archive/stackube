@@ -3,6 +3,7 @@ package network
 import (
 	"fmt"
 
+	"github.com/golang/glog"
 	apiv1 "k8s.io/api/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -11,75 +12,58 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	crv1 "git.openstack.org/openstack/stackube/pkg/apis/v1"
-	crdClient "git.openstack.org/openstack/stackube/pkg/kubecrd"
-	osDriver "git.openstack.org/openstack/stackube/pkg/openstack"
+	"git.openstack.org/openstack/stackube/pkg/kubecrd"
+	"git.openstack.org/openstack/stackube/pkg/openstack"
 	"git.openstack.org/openstack/stackube/pkg/util"
-
-	"github.com/golang/glog"
 )
 
 // Watcher is an network of watching on resource create/update/delete events
 type NetworkController struct {
-	kubeCRDClient *crdClient.CRDClient
-	driver        *osDriver.Client
+	kubeCRDClient   *kubecrd.CRDClient
+	driver          *openstack.Client
+	networkInformer cache.Controller
 }
 
-func (c *NetworkController) GetKubeCRDClient() *crdClient.CRDClient {
+func (c *NetworkController) GetKubeCRDClient() *kubecrd.CRDClient {
 	return c.kubeCRDClient
 }
 
 func (c *NetworkController) Run(stopCh <-chan struct{}) error {
 	defer utilruntime.HandleCrash()
 
-	source := cache.NewListWatchFromClient(
-		c.kubeCRDClient.Client,
-		crv1.NetworkResourcePlural,
-		apiv1.NamespaceAll,
-		fields.Everything())
-
-	_, networkInformer := cache.NewInformer(
-		source,
-		&crv1.Network{},
-		0,
-		cache.ResourceEventHandlerFuncs{
-			AddFunc:    c.onAdd,
-			UpdateFunc: c.onUpdate,
-			DeleteFunc: c.onDelete,
-		})
-
-	go networkInformer.Run(stopCh)
+	go c.networkInformer.Run(stopCh)
 	<-stopCh
 
 	return nil
 }
 
-func NewNetworkController(kubeconfig, openstackConfigFile string) (*NetworkController, error) {
-	// Create the client config. Use kubeconfig if given, otherwise assume in-cluster.
-	config, err := util.NewClusterConfig(kubeconfig)
-	if err != nil {
-		return nil, fmt.Errorf("failed to build kubeconfig: %v", err)
-	}
-	clientset, err := apiextensionsclient.NewForConfig(config)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create kubeclient from config: %v", err)
-	}
-
+func NewNetworkController(osClient *openstack.Client, kubeExtClient *apiextensionsclient.Clientset) (*NetworkController, error) {
 	// initialize CRD if it does not exist
-	_, err = crdClient.CreateNetworkCRD(clientset)
+	_, err := kubecrd.CreateNetworkCRD(kubeExtClient)
 	if err != nil && !apierrors.IsAlreadyExists(err) {
 		return nil, fmt.Errorf("failed to create CRD to kube-apiserver: %v", err)
 	}
 
-	// Create OpenStack client from config
-	openstack, err := osDriver.NewClient(openstackConfigFile, kubeconfig)
-	if err != nil {
-		return nil, fmt.Errorf("Couldn't initialize openstack: %#v", err)
-	}
-
+	source := cache.NewListWatchFromClient(
+		osClient.CRDClient.Client,
+		crv1.NetworkResourcePlural,
+		apiv1.NamespaceAll,
+		fields.Everything())
 	networkController := &NetworkController{
-		kubeCRDClient: openstack.CRDClient,
-		driver:        openstack,
+		kubeCRDClient: osClient.CRDClient,
+		driver:        osClient,
 	}
+	_, networkInformer := cache.NewInformer(
+		source,
+		&crv1.Network{},
+		0,
+		cache.ResourceEventHandlerFuncs{
+			AddFunc:    networkController.onAdd,
+			UpdateFunc: networkController.onUpdate,
+			DeleteFunc: networkController.onDelete,
+		})
+	networkController.networkInformer = networkInformer
+
 	return networkController, nil
 }
 

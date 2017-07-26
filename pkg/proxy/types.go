@@ -9,6 +9,7 @@ import (
 
 	"github.com/golang/glog"
 
+	"git.openstack.org/openstack/stackube/pkg/util"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -93,7 +94,7 @@ func newServiceInfo(svcPortName servicePortName, port *v1.ServicePort, service *
 		nodePort:    int(port.NodePort),
 		serviceType: service.Spec.Type,
 		// Deep-copy in case the service instance changes
-		loadBalancerStatus:       *loadBalancerStatusDeepCopy(&service.Status.LoadBalancer),
+		loadBalancerStatus:       *util.LoadBalancerStatusDeepCopy(&service.Status.LoadBalancer),
 		sessionAffinityType:      service.Spec.SessionAffinity,
 		stickyMaxAgeMinutes:      180,
 		externalIPs:              make([]string, len(service.Spec.ExternalIPs)),

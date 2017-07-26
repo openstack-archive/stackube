@@ -7,7 +7,6 @@ import (
 	crdClient "git.openstack.org/openstack/stackube/pkg/kubecrd"
 	"git.openstack.org/openstack/stackube/pkg/openstack"
 
-	"git.openstack.org/openstack/stackube/pkg/util"
 	"github.com/golang/glog"
 	apiv1 "k8s.io/api/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
@@ -27,38 +26,19 @@ type TenantController struct {
 }
 
 // NewTenantController creates a new tenant controller.
-func NewTenantController(kubeconfig, cloudconfig string) (*TenantController, error) {
-	// Create the client config. Use kubeconfig if given, otherwise assume in-cluster.
-	config, err := util.NewClusterConfig(kubeconfig)
-	if err != nil {
-		return nil, fmt.Errorf("failed to build kubeconfig: %v", err)
-	}
-	clientset, err := apiextensionsclient.NewForConfig(config)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create kubeclient from config: %v", err)
-	}
-
+func NewTenantController(kubeClient *kubernetes.Clientset,
+	osClient *openstack.Client,
+	kubeExtClient *apiextensionsclient.Clientset) (*TenantController, error) {
 	// initialize CRD if it does not exist
-	_, err = crdClient.CreateTenantCRD(clientset)
+	_, err := crdClient.CreateTenantCRD(kubeExtClient)
 	if err != nil && !apierrors.IsAlreadyExists(err) {
 		return nil, fmt.Errorf("failed to create CRD to kube-apiserver: %v", err)
 	}
 
-	k8sClient, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create kubernetes client: %v", err)
-	}
-
-	// Create OpenStack client from config
-	openStackClient, err := openstack.NewClient(cloudconfig, kubeconfig)
-	if err != nil {
-		return nil, fmt.Errorf("init openstack client failed: %v", err)
-	}
-
 	c := &TenantController{
-		kubeCRDClient:   openStackClient.CRDClient,
-		k8sClient:       k8sClient,
-		openstackClient: openStackClient,
+		kubeCRDClient:   osClient.CRDClient,
+		k8sClient:       kubeClient,
+		openstackClient: osClient,
 	}
 
 	if err = c.createClusterRoles(); err != nil {

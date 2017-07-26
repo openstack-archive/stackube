@@ -240,8 +240,38 @@
 			"revisionTime": "2017-07-18T07:00:34Z"
 		},
 		{
+			"checksumSHA1": "CHmnyRSFPivC+b/ojgfeEIY5ReM=",
+			"path": "github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/layer3/floatingips",
+			"revision": "1217c40cf502cef2fc3aa1a25fcd1ed1bdf00a4b",
+			"revisionTime": "2017-07-18T07:00:34Z"
+		},
+		{
 			"checksumSHA1": "Mjt7GwFygyqPxygY8xZZnUasHmk=",
 			"path": "github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/layer3/routers",
+			"revision": "1217c40cf502cef2fc3aa1a25fcd1ed1bdf00a4b",
+			"revisionTime": "2017-07-18T07:00:34Z"
+		},
+		{
+			"checksumSHA1": "mhpwj5tPv7Uw5aUfC55fhLPBcKo=",
+			"path": "github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/lbaas_v2/listeners",
+			"revision": "1217c40cf502cef2fc3aa1a25fcd1ed1bdf00a4b",
+			"revisionTime": "2017-07-18T07:00:34Z"
+		},
+		{
+			"checksumSHA1": "5efJz6UH7JCFeav5ZCCzicXCFTU=",
+			"path": "github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/lbaas_v2/loadbalancers",
+			"revision": "1217c40cf502cef2fc3aa1a25fcd1ed1bdf00a4b",
+			"revisionTime": "2017-07-18T07:00:34Z"
+		},
+		{
+			"checksumSHA1": "TVFgBTz7B6bb1R4TWdgAkbE1/fk=",
+			"path": "github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/lbaas_v2/monitors",
+			"revision": "1217c40cf502cef2fc3aa1a25fcd1ed1bdf00a4b",
+			"revisionTime": "2017-07-18T07:00:34Z"
+		},
+		{
+			"checksumSHA1": "xirjw9vJIN6rmkT3T56bfPfOLUM=",
+			"path": "github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/lbaas_v2/pools",
 			"revision": "1217c40cf502cef2fc3aa1a25fcd1ed1bdf00a4b",
 			"revisionTime": "2017-07-18T07:00:34Z"
 		},

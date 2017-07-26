@@ -24,10 +24,10 @@ import (
 )
 
 const (
-	defaultSyncPerios = 15 * time.Minute
-	minSyncPeriod     = 5 * time.Second
-	syncPeriod        = 30 * time.Second
-	burstSyncs        = 2
+	defaultResyncPeriod = 15 * time.Minute
+	minSyncPeriod       = 5 * time.Second
+	syncPeriod          = 30 * time.Second
+	burstSyncs          = 2
 )
 
 type Proxier struct {
@@ -81,7 +81,7 @@ func NewProxier(kubeConfig, openstackConfig string) (*Proxier, error) {
 		return nil, fmt.Errorf("failed to build clientset: %v", err)
 	}
 
-	factory := informers.NewSharedInformerFactory(clientset, defaultSyncPerios)
+	factory := informers.NewSharedInformerFactory(clientset, defaultResyncPeriod)
 	proxier := &Proxier{
 		kubeClientset:    clientset,
 		osClient:         osClient,
@@ -488,7 +488,7 @@ func (p *Proxier) syncProxyRules() {
 		// Step 3: compose iptables chain.
 		netns := getRouterNetns(nsInfo.router)
 		if !netnsExist(netns) {
-			glog.V(3).Infof("Netns %q doesn't exist, omit the service")
+			glog.V(3).Infof("Netns %q doesn't exist, omit the services in namespace %q", netns, namespace)
 			continue
 		}
 
@@ -522,8 +522,8 @@ func (p *Proxier) syncProxyRules() {
 			svcNameString := svcInfo.serviceNameString
 
 			// Step 5.1: check service type.
-			// Only ClusterIP service is supported now.
-			// TODO: support other types of services.
+			// Only ClusterIP service is supported. NodePort service is not supported since networks are L2 isolated.
+			// LoadBalancer service is handled in service controller.
 			if svcInfo.serviceType != v1.ServiceTypeClusterIP {
 				glog.V(3).Infof("Only ClusterIP service is supported, omitting service %q", svcName.NamespacedName)
 				continue

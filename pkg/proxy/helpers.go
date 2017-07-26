@@ -197,15 +197,6 @@ func getServiceHealthCheckNodePort(service *v1.Service) int32 {
 	return service.Spec.HealthCheckNodePort
 }
 
-func loadBalancerStatusDeepCopy(lb *v1.LoadBalancerStatus) *v1.LoadBalancerStatus {
-	c := &v1.LoadBalancerStatus{}
-	c.Ingress = make([]v1.LoadBalancerIngress, len(lb.Ingress))
-	for i := range lb.Ingress {
-		c.Ingress[i] = lb.Ingress[i]
-	}
-	return c
-}
-
 func getRouterNetns(routerID string) string {
 	return "qrouter-" + routerID
 }

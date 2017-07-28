@@ -1,4 +1,6 @@
-# Copyright (c) 2017 OpenStack Foundation.
+#!/usr/bin/env python
+
+# Copyright (c) YEAR OpenStack Foundation.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,15 +14,3 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM busybox:1.26.2
-
-MAINTAINER stackube team
-
-ADD _output/kubestack /opt/cni/bin/kubestack
-ADD deployment/kubestack/install-cni.sh /install-cni.sh
-ADD deployment/kubestack/10-kubestack.conf /etc/cni/net.d/10-kubestack.conf
-ADD deployment/kubestack/kubestack.conf.default /kubestack.conf.tmp
-
-ENV PATH=$PATH:/opt/cni/bin
-VOLUME /opt/cni
-WORKDIR /opt/cni/bin

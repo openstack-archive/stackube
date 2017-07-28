@@ -1,19 +1,19 @@
-# Copyright (c) 2010 OpenStack Foundation.
+#!/usr/bin/env python
+
+# Copyright (c) 2017 OpenStack Foundation.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#    http://www.apache.org/licenses/LICENSE-2.0
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
-# implied.
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#
 # Stackube documentation build configuration file, created by
 # sphinx-quickstart on Tue May 18 13:50:15 2010.
 #
@@ -25,7 +25,6 @@
 #
 # All configuration values have a default; values that are commented out
 # serve to show the default.
-
 import os
 import subprocess
 import sys
@@ -160,7 +159,7 @@ html_static_path = ['_static']
 # using the given strftime format.
 #html_last_updated_fmt = '%b %d, %Y'
 git_cmd = ["git", "log", "--pretty=format:'%ad, commit %h'", "--date=local -",
-   "n1"]
+           "n1"]
 try:
     html_last_updated_fmt = subprocess.Popen(
         git_cmd, stdout=subprocess.PIPE).communicate()[0]

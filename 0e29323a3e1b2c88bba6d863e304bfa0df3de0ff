@@ -1,0 +1,8 @@
+Code-Review+2: Pengfei Ni <feiskyer@gmail.com>
+Workflow+1: Pengfei Ni <feiskyer@gmail.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Fri, 28 Jul 2017 15:29:42 +0000
+Reviewed-on: https://review.openstack.org/486861
+Project: openstack/stackube
+Branch: refs/heads/master

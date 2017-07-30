@@ -134,7 +134,7 @@ func (c *CRDClient) AddNetwork(network *crv1.Network) error {
 	return nil
 }
 
-func (c *CRDClient) DeleteNetork(namespace string) error {
+func (c *CRDClient) DeleteNetwork(namespace string) error {
 	// NOTE: the automatically created network for tenant use namespace as name
 	err := c.Client.Delete().
 		Resource(crv1.NetworkResourcePlural).

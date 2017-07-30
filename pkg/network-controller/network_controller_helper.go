@@ -44,12 +44,12 @@ func (c *NetworkController) addNetworkToDriver(kubeNetwork *crv1.Network) {
 			tenantID, err = c.driver.GetTenantIDFromName(kubeNetwork.GetNamespace())
 			if err != nil {
 				glog.Errorf("failed to fetch tenantID for tenantName: %v, error: %v retrying\n", tenantName, err)
-				return false, nil
+				return false, err
 			}
 
 			if tenantID == "" {
 				glog.V(5).Infof("tenantID is empty for tenantName: %v, retrying\n", tenantName)
-				return false, nil
+				return false, err
 			}
 			return true, nil
 		})

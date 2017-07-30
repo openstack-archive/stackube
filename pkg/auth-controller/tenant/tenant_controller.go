@@ -136,7 +136,7 @@ func (c *TenantController) onDelete(obj interface{}) {
 	// Delete automatically created network
 	// TODO(harry) so that we can not deal with network with different name and namespace,
 	// we need to document that.
-	if err := c.kubeCRDClient.DeleteNetork(tenantName); err != nil {
+	if err := c.kubeCRDClient.DeleteNetwork(tenantName); err != nil {
 		glog.Errorf("failed to delete network for tenant: %v", tenantName)
 	}
 

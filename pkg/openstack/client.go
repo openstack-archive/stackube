@@ -97,6 +97,7 @@ func toAuthOptions(cfg Config) gophercloud.AuthOptions {
 		Username:         cfg.Global.Username,
 		Password:         cfg.Global.Password,
 		TenantName:       cfg.Global.TenantName,
+		AllowReauth:      true,
 	}
 }
 
@@ -104,21 +105,15 @@ func NewClient(config string, kubeConfig string) (*Client, error) {
 	var opts gophercloud.AuthOptions
 	cfg, err := readConfig(config)
 	if err != nil {
-		glog.V(0).Infof("Failed read cloudconfig: %v. Starting init openstackclient from env", err)
-		opts, err = openstack.AuthOptionsFromEnv()
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		opts = toAuthOptions(cfg)
+		return nil, fmt.Errorf("Failed read cloudconfig: %v", err)
 	}
-
 	glog.V(1).Infof("Initializing openstack client with config %v", cfg)
 
 	if cfg.Global.ExtNetID == "" {
 		return nil, fmt.Errorf("external network ID not set")
 	}
 
+	opts = toAuthOptions(cfg)
 	provider, err := openstack.AuthenticatedClient(opts)
 	if err != nil {
 		return nil, err

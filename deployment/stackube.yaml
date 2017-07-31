@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This ConfigMap is used to configure stackube-controller and kubestack.
+# This ConfigMap is used to configure stackube-controller,stackube-proxy and kubestack.
 kind: ConfigMap
 apiVersion: v1
 metadata:

@@ -12,28 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This ConfigMap is used to configure stackube-controller and kubestack.
-kind: ConfigMap
-apiVersion: v1
-metadata:
-  name: stackube-config
-  namespace: kube-system
-data:
-  auth-url: "<Your-openstack-authentication-endpoint>"
-  username: "admin"
-  password: "password"
-  tenant-name: "admin"
-  region: "RegionOne"
-  ext-net-id: "<Your-external-network-id>"
-  plugin-name: "ovs"
-  integration-bridge: "br-int"
-  user-cidr: "10.244.0.0/16"
-  user-gateway: "10.244.0.1"
-  kubernetes-host: "<Your-kubernetes-host>"
-  kubernetes-port: "<Your-kubernetes-port>"
-
----
-
 # This manifest installs kubestack CNI plugins and network config
 # on each master and worker node in a Kubernetes cluster.
 kind: DaemonSet

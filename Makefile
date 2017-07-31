@@ -22,6 +22,7 @@ GIT_HOST = git.openstack.org
 SHELL := /bin/bash
 
 STACKUBE_VERSION = 0.1
+STACKUBE_PROXY_VERSION = 0.1
 KUBESTACK_VERSION = 0.1
 
 PWD := $(shell pwd)
@@ -73,6 +74,8 @@ docker: depend
 	sudo docker build -t stackube/kubestack:v$(KUBESTACK_VERSION) ./deployment/kubestack/
 	cp _output/stackube-controller deployment/stackube-controller
 	sudo docker build -t stackube/stackube-controller:v$(STACKUBE_VERSION) ./deployment/stackube-controller/
+	cp _output/stackube-proxy deployment/stackube-proxy
+	sudo docker build -t stackube/stackube-proxy:v$(STACKUBE_PROXY_VERSION) ./deployment/stackube-proxy/
 
 .PHONY: test
 test: test-unit

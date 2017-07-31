@@ -266,10 +266,7 @@ rules:
 - apiGroups:
   - "*"
   resources:
-  - namespaces
-  - services
-  - services/status
-  - endpoints
+  - "*"
   verbs:
   - "*"
 - apiGroups:
@@ -277,14 +274,16 @@ rules:
   resources:
   - customresourcedefinitions
   verbs:
-  - create
+  - "*"
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:
   - clusterroles
   - clusterrolebindings
+  - roles
+  - rolebindings
   verbs:
-  - create
+  - "*"
 - apiGroups:
   - stackube.kubernetes.io
   resources:

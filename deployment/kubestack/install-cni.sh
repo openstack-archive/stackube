@@ -34,6 +34,10 @@ if [ -w "/host/opt/cni/bin/" ]; then
 	echo "CNI plugin version: $(/host/opt/cni/bin/kubestack -v)"
 fi
 
+if [ ! -d /host/etc/kubestack ]; then
+	mkdir -p /host/etc/kubestack
+fi
+
 # Place the new CNI network config if the directory is writeable.
 if [ -w "/host/etc/cni/net.d/" ]; then
 	cp /etc/cni/net.d/10-kubestack.conf /host/etc/cni/net.d/
@@ -63,9 +67,33 @@ sed -i s/_PLUGIN_NAME_/${PLUGIN_NAME:-}/g $TMP_CONF
 sed -i s/_INTEGRATION_BRIDGE_/${INTEGRATION_BRIDGE:-}/g $TMP_CONF
 
 # Move the temporary kubestack config into place.
-KUBESTACK_CONFIG_PATH='/host/etc/kubestack.conf'
+KUBESTACK_CONFIG_PATH='/host/etc/kubestack/kubestack.conf'
 mv $TMP_CONF $KUBESTACK_CONFIG_PATH
 echo "Wrote kubestack config: $(cat ${KUBESTACK_CONFIG_PATH})"
+
+KUBERNETES_CONFIG_PATH='/host/etc/kubestack/kubernetes.conf'
+token=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+cacert=$(cat /var/run/secrets/kubernetes.io/serviceaccount/ca.crt | base64 | tr -d '\n')
+cat > ${KUBERNETES_CONFIG_PATH} <<EOF
+apiVersion: v1
+clusters:
+- cluster:
+    certificate-authority-data: ${cacert}
+    server: https://${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT}
+  name: kubernetes
+contexts:
+- context:
+    cluster: kubernetes
+    user: kubernetes
+  name: kubernetes
+current-context: kubernetes
+kind: Config
+preferences: {}
+users:
+- name: kubernetes
+  user:
+    token: ${token}
+EOF
 
 while true; do
 	sleep 3600;

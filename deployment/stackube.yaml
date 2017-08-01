@@ -29,8 +29,8 @@ data:
   integration-bridge: "br-int"
   user-cidr: "10.244.0.0/16"
   user-gateway: "10.244.0.1"
-  kubernetes-host: "<Your-external-kubernetes-host>"
-  kubernetes-port: "<Your-external-kubernetes-port>"
+  kubernetes-host: "<Your-kubernetes-host>"
+  kubernetes-port: "<Your-kubernetes-port>"
 
 ---
 
@@ -58,6 +58,7 @@ spec:
            {"key":"CriticalAddonsOnly", "operator":"Exists"}]
     spec:
       hostNetwork: true
+      serviceAccountName: kubestack
       containers:
         # This container installs the kubestack CNI binaries
         # and CNI network config file on each node.
@@ -113,6 +114,18 @@ spec:
                 configMapKeyRef:
                   name: stackube-config
                   key: integration-bridge
+            # The kubernetes service host.
+            - name: KUBERNETES_SERVICE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: stackube-config
+                  key: kubernetes-host
+            # The kubernetes service port.
+            - name: KUBERNETES_SERVICE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: stackube-config
+                  key: kubernetes-port
           volumeMounts:
             - mountPath: /host/opt/cni/bin
               name: cni-bin-dir
@@ -215,13 +228,13 @@ spec:
                 configMapKeyRef:
                   name: stackube-config
                   key: user-gateway
-            # The kubernetes external service host.
+            # The kubernetes service host.
             - name: KUBERNETES_SERVICE_HOST
               valueFrom:
                 configMapKeyRef:
                   name: stackube-config
                   key: kubernetes-host
-            # The kubernetes external service port.
+            # The kubernetes service port.
             - name: KUBERNETES_SERVICE_PORT
               valueFrom:
                 configMapKeyRef:
@@ -299,3 +312,47 @@ kind: ServiceAccount
 metadata:
   name: stackube-controller
   namespace: kube-system
+
+---
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubestack
+  namespace: kube-system
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: kubestack
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kubestack
+subjects:
+- kind: ServiceAccount
+  name: kubestack
+  namespace: kube-system
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: kubestack
+rules:
+- apiGroups:
+  - "*"
+  resources:
+  - "*"
+  verbs:
+  - "*"
+- apiGroups:
+  - stackube.kubernetes.io
+  resources:
+  - tenants
+  - networks
+  verbs:
+  - "*"

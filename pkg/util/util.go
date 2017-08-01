@@ -18,6 +18,8 @@ package util
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
 
 	apiv1 "k8s.io/api/core/v1"
 )
@@ -65,4 +67,15 @@ func IsSystemNamespace(ns string) bool {
 		return true
 	}
 	return false
+}
+
+// NetnsSymlink make a symlink for a netns path.
+func NetnsSymlink(source, dest string) error {
+	dir := filepath.Dir(dest)
+	// create dst dir if not exist.
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		os.MkdirAll(dir, 0750)
+	}
+
+	return os.Symlink(source, dest)
 }

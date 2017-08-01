@@ -23,7 +23,9 @@ import (
 	"net"
 	"os"
 	"path"
+	"path/filepath"
 	"runtime"
+	"strings"
 
 	"git.openstack.org/openstack/stackube/pkg/kubestack/plugins"
 	kubestacktypes "git.openstack.org/openstack/stackube/pkg/kubestack/types"
@@ -46,6 +48,8 @@ import (
 var (
 	// VERSION is filled out during the build process (using git describe output)
 	VERSION = "0.1"
+
+	netnsBasePath = "/var/run/netns"
 )
 
 // OpenStack describes openstack client and its plugins.
@@ -224,9 +228,20 @@ func cmdAdd(args *skel.CmdArgs) error {
 	defer netns.Close()
 
 	// Setup interface for pod
+	var netnsName string
 	_, cidr, _ := net.ParseCIDR(subnet.Cidr)
 	prefixSize, _ := cidr.Mask.Size()
-	netnsName := path.Base(netns.Path())
+	if strings.HasPrefix(netnsBasePath, netns.Path()) {
+		// container runtime has already made the symlink for netns.
+		netnsName = path.Base(netns.Path())
+	} else {
+		netnsName = podName
+		destPath := filepath.Join(netnsBasePath, netnsName)
+		if err := util.NetnsSymlink(netns.Path(), destPath); err != nil {
+			return fmt.Errorf("error of symlink %q: %v", destPath, err)
+		}
+	}
+
 	brInterface, conInterface, err := os.Plugin.SetupInterface(portName, args.ContainerID, port,
 		fmt.Sprintf("%s/%d", port.FixedIPs[0].IPAddress, prefixSize),
 		subnet.Gateway, args.IfName, netnsName)
@@ -265,7 +280,7 @@ func cmdAdd(args *skel.CmdArgs) error {
 }
 
 func cmdDel(args *skel.CmdArgs) error {
-	os, _, err := initOpenstack(args.StdinData)
+	osClient, _, err := initOpenstack(args.StdinData)
 	if err != nil {
 		glog.Errorf("Init OpenStack failed: %v", err)
 		return err
@@ -282,7 +297,7 @@ func cmdDel(args *skel.CmdArgs) error {
 	portName := util.BuildPortName(podNamespace, podName)
 
 	// Get port from openstack
-	port, err := os.Client.GetPort(portName)
+	port, err := osClient.Client.GetPort(portName)
 	if err != nil {
 		glog.Errorf("GetPort %s failed: %v", portName, err)
 		return err
@@ -294,17 +309,33 @@ func cmdDel(args *skel.CmdArgs) error {
 	glog.V(4).Infof("Pod %s's port is %v", podName, port)
 
 	// Delete interface
-	err = os.Plugin.DestroyInterface(portName, args.ContainerID, port)
+	err = osClient.Plugin.DestroyInterface(portName, args.ContainerID, port)
 	if err != nil {
 		glog.Errorf("DestroyInterface for pod %s failed: %v", podName, err)
 		return err
 	}
 
 	// Delete port from openstack
-	err = os.Client.DeletePort(portName)
+	err = osClient.Client.DeletePort(portName)
 	if err != nil {
 		glog.Errorf("DeletePort %s failed: %v", portName, err)
 		return err
+	}
+
+	// Remove netns symlink.
+	netns, err := ns.GetNS(args.Netns)
+	if err != nil {
+		glog.Warningf("failed to open netns %q: %v, suppose already deleted", args.Netns, err)
+		return nil
+	}
+	defer netns.Close()
+	if !strings.HasPrefix(netnsBasePath, netns.Path()) {
+		destPath := filepath.Join(netnsBasePath, podName)
+		if _, err := os.Stat(destPath); !os.IsNotExist(err) {
+			if err = os.Remove(destPath); err != nil {
+				glog.Warningf("failed to remove %q: %v", destPath, err)
+			}
+		}
 	}
 
 	return nil

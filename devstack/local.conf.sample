@@ -1,4 +1,6 @@
 [[local|localrc]]
+# Supported container runtimes: frakti, docker
+CONTAINER_RUNTIME=frakti
 ADMIN_PASSWORD=password
 DATABASE_PASSWORD=$ADMIN_PASSWORD
 RABBIT_PASSWORD=$ADMIN_PASSWORD

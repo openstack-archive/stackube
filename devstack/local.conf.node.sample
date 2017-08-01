@@ -1,4 +1,6 @@
 [[local|localrc]]
+# Supported container runtimes: frakti, docker
+CONTAINER_RUNTIME=frakti
 # Set to local host's IP
 HOST_IP=10.0.0.3
 # Set to master node's IP

@@ -124,7 +124,7 @@ gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg
 EOF'
         sudo setenforce 0
         sudo sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/selinux/config
-        sudo yum install -y kubernetes-cni kubelet kubeadm kubectl
+        sudo yum install -y kubernetes-cni kubelet=1.7.0-0 kubeadm=1.7.0-0 kubectl=1.7.0-0
     elif is_ubuntu; then
         sudo apt-get update && sudo apt-get install -y apt-transport-https
         sudo curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
@@ -132,7 +132,7 @@ EOF'
 deb http://apt.kubernetes.io/ kubernetes-xenial main
 EOF'
         sudo apt-get update
-        sudo apt-get install -y kubernetes-cni kubelet kubeadm kubectl
+        sudo apt-get install -y kubernetes-cni kubelet=1.7.0-00 kubeadm=1.7.0-00 kubectl=1.7.0-00
     else
         exit_distro_not_supported
     fi
@@ -157,8 +157,10 @@ function install_node {
 }
 
 function configure_kubelet {
-    sudo sed -i '2 i\Environment="KUBELET_EXTRA_ARGS=--container-runtime=remote --container-runtime-endpoint=/var/run/frakti.sock --feature-gates=AllAlpha=true"' /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
-    sudo systemctl daemon-reload
+    if [ "${CONTAINER_RUNTIME}" = "frakti" ]; then
+        sudo sed -i '2 i\Environment="KUBELET_EXTRA_ARGS=--container-runtime=remote --container-runtime-endpoint=/var/run/frakti.sock --feature-gates=AllAlpha=true"' /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
+        sudo systemctl daemon-reload
+    fi
 }
 
 function remove_kubernetes {
@@ -166,10 +168,14 @@ function remove_kubernetes {
     sudo systemctl stop kubelet
 
     if is_fedora; then
-        sudo yum remove -y qemu-hyper hyperstart hyper-container libvirt
+        if [ "${CONTAINER_RUNTIME}" = "frakti" ]; then
+            sudo yum remove -y qemu-hyper hyperstart hyper-container libvirt
+        fi
         sudo yum remove -y kubernetes-cni kubelet kubeadm kubectl docker
     elif is_ubuntu; then
-        sudo apt-get remove -y hyperstart hyper-container qemu libvirt-bin
+        if [ "${CONTAINER_RUNTIME}" = "frakti" ]; then
+            sudo apt-get remove -y hyperstart hyper-container qemu libvirt-bin
+        fi
         sudo apt-get remove -y kubernetes-cni kubelet kubeadm kubectl docker
     fi
 
@@ -177,18 +183,27 @@ function remove_kubernetes {
 }
 
 function install_stackube {
+    if [ "${CONTAINER_RUNTIME}" != "frakti" ] && [ "${CONTAINER_RUNTIME}" != "docker" ]; then
+        echo "Container runtime ${CONTAINER_RUNTIME} not supported"
+        exit 1
+    fi
+
     install_docker
-    install_hyper
-    install_frakti
+    if [ "${CONTAINER_RUNTIME}" = "frakti" ]; then
+        install_hyper
+        install_frakti
+    fi
     install_kubelet
 }
 
 function init_stackube {
     sudo systemctl daemon-reload
     sudo systemctl restart docker
-    sudo systemctl restart libvirtd
-    sudo systemctl restart hyperd
-    sudo systemctl restart frakti
+    if [ "${CONTAINER_RUNTIME}" = "frakti" ]; then
+        sudo systemctl restart libvirtd
+        sudo systemctl restart hyperd
+        sudo systemctl restart frakti
+    fi
 
     if is_service_enabled kubernetes_master; then
         install_master

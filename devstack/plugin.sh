@@ -124,7 +124,7 @@ gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg
 EOF'
         sudo setenforce 0
         sudo sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/selinux/config
-        sudo yum install -y kubernetes-cni kubelet=1.7.0-0 kubeadm=1.7.0-0 kubectl=1.7.0-0
+        sudo yum install -y kubernetes-cni kubelet-1.7.0-0 kubeadm-1.7.0-0 kubectl-1.7.0-0
     elif is_ubuntu; then
         sudo apt-get update && sudo apt-get install -y apt-transport-https
         sudo curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -

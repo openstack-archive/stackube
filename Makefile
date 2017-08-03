@@ -77,6 +77,12 @@ docker: depend
 	cp _output/stackube-proxy deployment/stackube-proxy
 	sudo docker build -t stackube/stackube-proxy:v$(STACKUBE_PROXY_VERSION) ./deployment/stackube-proxy/
 
+.PHONY: push
+push:
+	sudo docker push stackube/kubestack:v$(KUBESTACK_VERSION)
+	sudo docker push stackube/stackube-controller:v$(STACKUBE_VERSION)
+	sudo docker push stackube/stackube-proxy:v$(STACKUBE_PROXY_VERSION)
+
 .PHONY: test
 test: test-unit
 

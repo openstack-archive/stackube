@@ -1,2 +1,5 @@
 # binaries
 _output
+deployment/kubestack/kubestack
+deployment/stackube-controller/stackube-controller
+deployment/stackube-proxy/stackube-proxy

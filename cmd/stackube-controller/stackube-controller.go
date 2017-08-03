@@ -56,7 +56,7 @@ func startControllers(kubeClient *kubernetes.Clientset,
 	}
 
 	// Creates a new Network controller
-	networkController, err := network.NewNetworkController(osClient, kubeExtClient)
+	networkController, err := network.NewNetworkController(kubeClient, osClient, kubeExtClient)
 	if err != nil {
 		return err
 	}

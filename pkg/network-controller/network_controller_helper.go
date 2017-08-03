@@ -17,6 +17,9 @@ limitations under the License.
 package network
 
 import (
+	"bytes"
+	"fmt"
+	"html/template"
 	"time"
 
 	crv1 "git.openstack.org/openstack/stackube/pkg/apis/v1"
@@ -32,7 +35,7 @@ const (
 	subnetSuffix  = "subnet"
 )
 
-func (c *NetworkController) addNetworkToDriver(kubeNetwork *crv1.Network) {
+func (c *NetworkController) addNetworkToDriver(kubeNetwork *crv1.Network) error {
 	// The tenant name is the same with namespace, let's get tenantID by tenantName
 	tenantName := kubeNetwork.GetNamespace()
 	tenantID, err := c.driver.GetTenantIDFromName(tenantName)
@@ -55,8 +58,7 @@ func (c *NetworkController) addNetworkToDriver(kubeNetwork *crv1.Network) {
 		})
 	}
 	if err != nil || tenantID == "" {
-		glog.Errorf("failed to fetch tenantID for tenantName: %v, error: %v abort! \n", tenantName, err)
-		return
+		return fmt.Errorf("failed to fetch tenantID for tenantName: %v, error: %v abort! \n", tenantName, err)
 	}
 
 	networkName := util.BuildNetworkName(tenantName, kubeNetwork.GetName())
@@ -84,12 +86,12 @@ func (c *NetworkController) addNetworkToDriver(kubeNetwork *crv1.Network) {
 	check, err := c.driver.CheckTenantID(driverNetwork.TenantID)
 	if err != nil {
 		glog.Errorf("[NetworkController]: check tenantID failed: %v", err)
+		return err
 	}
 	if !check {
-		glog.Warningf("[NetworkController]: tenantID %s doesn't exist in network provider", driverNetwork.TenantID)
 		kubeNetwork.Status.State = crv1.NetworkFailed
 		c.kubeCRDClient.UpdateNetwork(kubeNetwork)
-		return
+		return fmt.Errorf("tenantID %s doesn't exist in network provider", driverNetwork.TenantID)
 	}
 
 	// Check if provider network id exist
@@ -124,4 +126,18 @@ func (c *NetworkController) addNetworkToDriver(kubeNetwork *crv1.Network) {
 
 	kubeNetwork.Status.State = newNetworkStatus
 	c.kubeCRDClient.UpdateNetwork(kubeNetwork)
+	return nil
+}
+
+func parseTemplate(strtmpl string, obj interface{}) ([]byte, error) {
+	var buf bytes.Buffer
+	tmpl, err := template.New("template").Parse(strtmpl)
+	if err != nil {
+		return nil, fmt.Errorf("error when parsing template: %v", err)
+	}
+	err = tmpl.Execute(&buf, obj)
+	if err != nil {
+		return nil, fmt.Errorf("error when executing template: %v", err)
+	}
+	return buf.Bytes(), nil
 }

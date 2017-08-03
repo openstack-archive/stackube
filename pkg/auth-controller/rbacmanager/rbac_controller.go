@@ -183,6 +183,7 @@ func (c *Controller) syncRBAC(ns *apiv1.Namespace) error {
 		return nil
 	}
 	rbacClient := c.k8sclient.Rbac()
+
 	// Create role for tenant
 	role := rbac.GenerateRoleByNamespace(ns.Name)
 	_, err := rbacClient.Roles(ns.Name).Create(role)
@@ -191,6 +192,7 @@ func (c *Controller) syncRBAC(ns *apiv1.Namespace) error {
 		return err
 	}
 	glog.V(4).Infof("Created default-role in namespace %s for tenant %s", ns.Name, ns.Name)
+
 	// Create rolebinding for tenant
 	roleBinding := rbac.GenerateRoleBinding(ns.Name, ns.Name)
 	_, err = rbacClient.RoleBindings(ns.Name).Create(roleBinding)
@@ -198,6 +200,13 @@ func (c *Controller) syncRBAC(ns *apiv1.Namespace) error {
 		glog.Errorf("Failed create %s-rolebindings in namespace %s for tenant %s: %v", ns.Name, ns.Name, ns.Name, err)
 		return err
 	}
+	saRoleBinding := rbac.GenerateServiceAccountRoleBinding(ns.Name, ns.Name)
+	_, err = rbacClient.RoleBindings(ns.Name).Create(saRoleBinding)
+	if err != nil && !apierrors.IsAlreadyExists(err) {
+		glog.Errorf("Failed create %s-rolebindings-sa in namespace %s for tenant %s: %v", ns.Name, ns.Name, ns.Name, err)
+		return err
+	}
+
 	glog.V(4).Infof("Created %s-rolebindings in namespace %s for tenant %s", ns.Name, ns.Name, ns.Name)
 	return nil
 }

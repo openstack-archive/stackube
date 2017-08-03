@@ -44,6 +44,7 @@ func (spn servicePortName) String() string {
 
 // internal struct for string service information
 type serviceInfo struct {
+	name                     string
 	clusterIP                net.IP
 	port                     int
 	protocol                 v1.Protocol
@@ -104,6 +105,7 @@ func (e *endpointsInfo) String() string {
 func newServiceInfo(svcPortName servicePortName, port *v1.ServicePort, service *v1.Service) *serviceInfo {
 	onlyNodeLocalEndpoints := false
 	info := &serviceInfo{
+		name:        service.Name,
 		clusterIP:   net.ParseIP(service.Spec.ClusterIP),
 		port:        int(port.Port),
 		protocol:    port.Protocol,
@@ -254,9 +256,6 @@ func (sm *proxyServiceMap) unmerge(other proxyServiceMap, existingPorts sets.Str
 		_, exists := (*sm)[svcPortName]
 		if exists {
 			glog.V(1).Infof("Removing service port %q", svcPortName)
-			//if info.protocol == v1.ProtocolUDP {
-			//	staleServices.Insert(info.clusterIP.String())
-			//}
 			delete(*sm, svcPortName)
 		} else {
 			glog.Errorf("Service port %q removed, but doesn't exists", svcPortName)

@@ -1,7 +1,8 @@
 Setting Up a Development Environment
 =====================================
 
-This page describes how to setup a working development environment that can be used in developing stackube on Ubuntu or CentOS. These instructions assume you're already installed git, golang and python on your host.
+This page describes how to setup a working development environment that can be used in developing stackube on Ubuntu or
+CentOS. These instructions assume you're already installed git, golang and python on your host.
 
 =================
 Getting the code
@@ -61,3 +62,8 @@ And configure local.conf:
 - Set `HOST_IP` to local host's IP
 - Set `SERVICE_HOST` to master's IP
 - Set `KUBEADM_TOKEN` to kubeadm token
+
+Start installation:
+::
+
+  ./stack.sh

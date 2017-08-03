@@ -66,6 +66,32 @@ func GenerateRoleBinding(namespace, tenant string) *v1beta1.RoleBinding {
 	return roleBinding
 }
 
+func GenerateServiceAccountRoleBinding(namespace, tenant string) *v1beta1.RoleBinding {
+	subject := v1beta1.Subject{
+		Kind:      "ServiceAccount",
+		Name:      "default",
+		Namespace: namespace,
+	}
+	roleRef := v1beta1.RoleRef{
+		APIGroup: "rbac.authorization.k8s.io",
+		Kind:     "Role",
+		Name:     "default-role",
+	}
+	roleBinding := &v1beta1.RoleBinding{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "RoleBinding",
+			APIVersion: "rbac.authorization.k8s.io/v1beta1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      tenant + "-rolebinding-sa",
+			Namespace: namespace,
+		},
+		Subjects: []v1beta1.Subject{subject},
+		RoleRef:  roleRef,
+	}
+	return roleBinding
+}
+
 func GenerateClusterRole() *v1beta1.ClusterRole {
 	policyRule := v1beta1.PolicyRule{
 		Verbs:     []string{v1beta1.VerbAll},

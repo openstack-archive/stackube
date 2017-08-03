@@ -45,6 +45,7 @@ spec:
            {"key":"CriticalAddonsOnly", "operator":"Exists"}]
     spec:
       hostNetwork: true
+      hostPID: true
       serviceAccountName: stackube-proxy
       dnsPolicy: ClusterFirst
       restartPolicy: Always

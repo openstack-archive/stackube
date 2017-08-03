@@ -41,4 +41,4 @@ mv $TMP_CONF $STACKUBE_CONFIG_PATH
 echo "Wrote stackube config: $(cat ${STACKUBE_CONFIG_PATH})"
 
 # Start stackube-proxy in-cluster.
-./stackube-proxy --kubeconfig=""
+./stackube-proxy --kubeconfig="" --v=3

@@ -50,4 +50,4 @@ if [ -z $USER_GATEWAY ];then
 	USER_GATEWAY='10.244.0.1'
 fi
 
-./stackube-controller --kubeconfig="" --user-cidr=${USER_CIDR} --user-gateway=${USER_GATEWAY}
+./stackube-controller --v=3 --kubeconfig="" --user-cidr=${USER_CIDR} --user-gateway=${USER_GATEWAY}

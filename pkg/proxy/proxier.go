@@ -19,6 +19,7 @@ package proxy
 import (
 	"bytes"
 	"fmt"
+	"net"
 	"strconv"
 	"strings"
 	"sync"
@@ -26,6 +27,8 @@ import (
 	"time"
 
 	"k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
@@ -47,6 +50,7 @@ const (
 )
 
 type Proxier struct {
+	clusterDNS        string
 	kubeClientset     *kubernetes.Clientset
 	osClient          *openstack.Client
 	factory           informers.SharedInformerFactory
@@ -97,11 +101,17 @@ func NewProxier(kubeConfig, openstackConfig string) (*Proxier, error) {
 		return nil, fmt.Errorf("failed to build clientset: %v", err)
 	}
 
+	clusterDNS, err := getClusterDNS(clientset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get cluster DNS: %v", err)
+	}
+
 	factory := informers.NewSharedInformerFactory(clientset, defaultResyncPeriod)
 	proxier := &Proxier{
 		kubeClientset:    clientset,
 		osClient:         osClient,
 		factory:          factory,
+		clusterDNS:       clusterDNS,
 		endpointsChanges: newEndpointsChangeMap(""),
 		serviceChanges:   newServiceChangeMap(),
 		namespaceChanges: newNamespaceChangeMap(),
@@ -562,7 +572,7 @@ func (p *Proxier) syncProxyRules() {
 					"-A", ChainSKPrerouting,
 					"-m", "comment", "--comment", svcNameString,
 					"-m", protocol, "-p", protocol,
-					"-d", fmt.Sprintf("%s/32", svcInfo.clusterIP.String()),
+					"-d", fmt.Sprintf("%s/32", p.getServiceIP(svcInfo)),
 					"--dport", strconv.Itoa(svcInfo.port),
 				}
 
@@ -588,4 +598,37 @@ func (p *Proxier) syncProxyRules() {
 			continue
 		}
 	}
+}
+
+func (p *Proxier) getServiceIP(serviceInfo *serviceInfo) string {
+	if serviceInfo.name == "kube-dns" {
+		return p.clusterDNS
+	}
+
+	return serviceInfo.clusterIP.String()
+}
+
+func getClusterDNS(client *kubernetes.Clientset) (string, error) {
+	dnssvc, err := client.CoreV1().Services(metav1.NamespaceSystem).Get("kube-dns", metav1.GetOptions{})
+	if err == nil && len(dnssvc.Spec.ClusterIP) > 0 {
+		return dnssvc.Spec.ClusterIP, nil
+	}
+
+	if apierrors.IsNotFound(err) {
+		// get from default namespace.
+		k8ssvc, err := client.CoreV1().Services(metav1.NamespaceDefault).Get("kubernetes", metav1.GetOptions{})
+		if err != nil {
+			return "", fmt.Errorf("couldn't fetch information about the kubernetes service: %v", err)
+		}
+
+		// Build an IP by taking the kubernetes service's clusterIP and appending a "0" and checking that it's valid
+		dnsIP := net.ParseIP(fmt.Sprintf("%s0", k8ssvc.Spec.ClusterIP))
+		if dnsIP == nil {
+			return "", fmt.Errorf("could not parse dns ip %q: %v", dnsIP, err)
+		}
+
+		return dnsIP.String(), nil
+	}
+
+	return "", err
 }

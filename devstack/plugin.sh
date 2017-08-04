@@ -15,33 +15,6 @@
 
 STACKUBE_ROOT=$(dirname "${BASH_SOURCE}")
 
-function configure_cni {
-    sudo mkdir -p /etc/cni/net.d
-    sudo sh -c "cat >/etc/cni/net.d/10-mynet.conf <<EOF
-{
-    \"cniVersion\": \"0.3.0\",
-    \"name\": \"mynet\",
-    \"type\": \"bridge\",
-    \"bridge\": \"cni0\",
-    \"isGateway\": true,
-    \"ipMasq\": true,
-    \"ipam\": {
-        \"type\": \"host-local\",
-        \"subnet\": \"${CONTAINER_CIDR}\",
-        \"routes\": [
-            { \"dst\": \"0.0.0.0/0\"  }
-        ]
-    }
-}
-EOF"
-    sudo sh -c 'cat >/etc/cni/net.d/99-loopback.conf <<EOF
-{
-    "cniVersion": "0.3.0",
-    "type": "loopback"
-}
-EOF'
-}
-
 function install_docker {
     if is_ubuntu; then
         sudo apt-get update
@@ -124,7 +97,7 @@ gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg
 EOF'
         sudo setenforce 0
         sudo sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/selinux/config
-        sudo yum install -y kubernetes-cni kubelet-1.7.0-0 kubeadm-1.7.0-0 kubectl-1.7.0-0
+        sudo yum install -y kubelet-1.7.3-1 kubeadm-1.7.3-1 kubectl-1.7.3-1
     elif is_ubuntu; then
         sudo apt-get update && sudo apt-get install -y apt-transport-https
         sudo curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
@@ -132,20 +105,54 @@ EOF'
 deb http://apt.kubernetes.io/ kubernetes-xenial main
 EOF'
         sudo apt-get update
-        sudo apt-get install -y kubernetes-cni kubelet=1.7.0-00 kubeadm=1.7.0-00 kubectl=1.7.0-00
+        sudo apt-get install -y kubelet=1.7.3-01 kubeadm=1.7.3-01 kubectl=1.7.3-01
     else
         exit_distro_not_supported
     fi
 }
 
 function install_master {
-    sed -i "s/KEYSTONE_HOST/${SERVICE_HOST}/g" ${STACKUBE_ROOT}/kubeadm.yaml
-    sudo kubeadm init --pod-network-cidr ${CLUSTER_CIDR} --config ${STACKUBE_ROOT}/kubeadm.yaml
+    sed -i "s#KEYSTONE_HOST#${SERVICE_HOST}#g" ${STACKUBE_ROOT}/kubeadm.yaml
+    sed -i "s#CLUSTER_CIDR#${CLUSTER_CIDR}#g" ${STACKUBE_ROOT}/kubeadm.yaml
+    sudo kubeadm init --config ${STACKUBE_ROOT}/kubeadm.yaml
     # Enable schedule pods on the master for testing.
     sudo cp /etc/kubernetes/admin.conf $HOME/
     sudo chown $(id -u):$(id -g) $HOME/admin.conf
     export KUBECONFIG=$HOME/admin.conf
     kubectl taint nodes --all node-role.kubernetes.io/master-
+}
+
+function install_stackube_addons {
+    # remove kube-dns deployment
+    kubectl -n kube-system delete deployment kube-dns
+    # remove kube-proxy daemonset
+    kubectl -n kube-system delete daemonset kube-proxy
+
+    source openrc admin admin
+    public_network=$(openstack network list --long -f value | grep External | awk '{print $1}')
+    cat >stackube-configmap.yaml <<EOF
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: stackube-config
+  namespace: kube-system
+data:
+  auth-url: "https://${SERVICE_HOST}/identity_admin/v2.0"
+  username: "admin"
+  password: "${ADMIN_PASSWORD}"
+  tenant-name: "admin"
+  region: "RegionOne"
+  ext-net-id: "${public_network}"
+  plugin-name: "ovs"
+  integration-bridge: "br-int"
+  user-cidr: "${CLUSTER_CIDR}"
+  user-gateway: "${CLUSTER_GATEWAY}"
+  kubernetes-host: "${SERVICE_HOST}"
+  kubernetes-port: "6443"
+EOF
+    kubectl create -f stackube-configmap.yaml
+    kubectl create -f ${STACKUBE_ROOT}/../deployment/stackube.yaml
+    kubectl create -f ${STACKUBE_ROOT}/../deployment/stackube-proxy.yaml
 }
 
 function install_node {
@@ -171,12 +178,12 @@ function remove_kubernetes {
         if [ "${CONTAINER_RUNTIME}" = "frakti" ]; then
             sudo yum remove -y qemu-hyper hyperstart hyper-container libvirt
         fi
-        sudo yum remove -y kubernetes-cni kubelet kubeadm kubectl docker
+        sudo yum remove -y kubelet kubeadm kubectl docker
     elif is_ubuntu; then
         if [ "${CONTAINER_RUNTIME}" = "frakti" ]; then
             sudo apt-get remove -y hyperstart hyper-container qemu libvirt-bin
         fi
-        sudo apt-get remove -y kubernetes-cni kubelet kubeadm kubectl docker
+        sudo apt-get remove -y kubelet kubeadm kubectl docker
     fi
 
     sudo rm -rf /usr/bin/frakti /etc/cni/net.d /lib/systemd/system/frakti.service
@@ -207,13 +214,13 @@ function init_stackube {
 
     if is_service_enabled kubernetes_master; then
         install_master
+        install_stackube_addons
     elif is_service_enabled kubernetes_node; then
         install_node
     fi
 }
 
 function configure_stackube {
-    configure_cni
     configure_kubelet
 }
 

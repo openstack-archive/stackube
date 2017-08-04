@@ -11,3 +11,5 @@ apiServerExtraArgs:
   runtime-config: "api/all=true"
   feature-gates: "AllAlpha=true"
   experimental-keystone-url: "https://KEYSTONE_HOST:5000/v2.0"
+networking:
+  podSubnet: "CLUSTER_CIDR"

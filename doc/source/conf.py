@@ -51,8 +51,6 @@ extensions = ['sphinx.ext.autodoc',
               'openstackdocstheme',
               'oslosphinx',
               'support_matrix',
-              'oslo_config.sphinxext',
-              'oslo_config.sphinxconfiggen',
               ]
 
 # openstackdocstheme options

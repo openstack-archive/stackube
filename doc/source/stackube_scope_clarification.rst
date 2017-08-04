@@ -87,29 +87,40 @@ us (and we’d like to) integrate it with any OpenStack-Kubernetes plugin.
 But right now, we hope to keep everything as simple as possible and
 focus on the core components.
 
-A typical deployment workflow of Stackube
+Deployment workflow
 =========================================
 
-On control nodes:
+-----------------
+On control nodes
+-----------------
 
-#. Install standalone Keystone, Neutron, Cinder (ceph rbd)
+Install standalone Keystone, Neutron, Cinder (ceph rbd).
+This can be done by any existing tools like devstack, RDO etc.
 
-   * This can be done by any existing tool like devstack, RDO etc
+----------------
+On other nodes
+----------------
 
-On other nodes:
+1. Install neutron L2 agents
 
-#. Install Kubernetes
+   This can be done by any existing tools like devstack, RDO etc.
+
+2. Install Kubernetes
 
    * Including container runtimes, CRI shims, CNI etc
-   * This can be done by any existing tool like kubeadm etc
+   * This can be done by any existing tools like kubeadm etc
 
-Deploy Stackube:
+3. Deploy Stackube
 
-#. *kubectl apply -f stackube.yaml*
+::
 
-   * This will deploy all Stackube plugins as Pods and DaemonSets to the cluster
+  kubectl create -f stackube-configmap.yaml
+  kubectl create -f deployment/stackube-proxy.yaml
+  kubectl create -f deployment/stackube.yaml
 
-(You can also deploy all these components in a single node)
+
+This will deploy all Stackube plugins as Pods and DaemonSets to the
+cluster. You can also deploy all these components in a single node.
 
 After that, users can use Kubernetes API to manage containers with
 hypervisor isolation, Neutron network, Cinder volume and tenant

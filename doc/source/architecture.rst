@@ -16,13 +16,13 @@ Hyper, and offers built-in soft/hard multi-tenancy (depending on the container r
 Components
 ===========
 
-#. Standard OpenStack Compoents
+1. Standard OpenStack Compoents
 
 * OpenStack Keytone
 * OpenStack Neutron
 * OpenStack Cinder
 
-#. Standard Kubernetes Components
+2. Standard Kubernetes Components
 
 * Etcd: the storage of kubernetes.
 * Kube-apiserver: the API, authn/authz and admission control of kubernetes.
@@ -32,8 +32,9 @@ Components
 * Frakti&HyperContainer: a hypervisor-based container runtime.
 * Docker: docker container runtime.
 
-#. Stackube addons
+3. Stackube addons
 
 * Stackube-controller: tenant and network manager.
 * Stackube-proxy: service discovery and load balancing, replacement of kube-proxy.
 * Kubestack: the CNI network plugin, which connects containers to Neutron network.
+

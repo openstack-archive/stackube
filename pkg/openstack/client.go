@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	crv1 "git.openstack.org/openstack/stackube/pkg/apis/v1"
 	crdClient "git.openstack.org/openstack/stackube/pkg/kubecrd"

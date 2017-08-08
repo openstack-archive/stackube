@@ -7,6 +7,14 @@ import (
 	"github.com/gophercloud/gophercloud"
 )
 
+// INsureV2Version insures ResourceBase url use v2.0 version.
+func INsureV2Version(client *gophercloud.ServiceClient) {
+	if strings.HasSuffix(client.ResourceBase, "v3/") {
+		strings.Replace(client.ResourceBase, "v3/", "v2.0/", 1)
+	}
+	client.ResourceBase = client.ResourceBase + "v2.0/"
+}
+
 // Version is a supported API version, corresponding to a vN package within the appropriate service.
 type Version struct {
 	ID       string

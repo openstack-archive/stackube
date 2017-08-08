@@ -7,6 +7,18 @@ import (
 	"github.com/gophercloud/gophercloud"
 )
 
+// V2ServiceURL insures service url use v2.0 version.
+func V2ServiceURL(client *gophercloud.ServiceClient, parts ...string) string {
+	baseURL := client.ResourceBaseURL()
+	if strings.HasSuffix(baseURL, "v2.0/") {
+		return baseURL + strings.Join(parts, "/")
+	}
+	if strings.HasSuffix(baseURL, "v3/") {
+		return strings.Replace(baseURL, "v3/", "v2.0/", 1) + strings.Join(parts, "/")
+	}
+	return baseURL + "v2.0/" + strings.Join(parts, "/")
+}
+
 // Version is a supported API version, corresponding to a vN package within the appropriate service.
 type Version struct {
 	ID       string

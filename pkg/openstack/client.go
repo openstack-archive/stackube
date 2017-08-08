@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	crv1 "git.openstack.org/openstack/stackube/pkg/apis/v1"
 	crdClient "git.openstack.org/openstack/stackube/pkg/kubecrd"
@@ -111,6 +112,12 @@ func NewClient(config string, kubeConfig string) (*Client, error) {
 
 	if cfg.Global.ExtNetID == "" {
 		return nil, fmt.Errorf("external network ID not set")
+	}
+	// Make sure the auth-url end with v2.0
+	if strings.HasSuffix(cfg.Global.AuthUrl, "v3") {
+		strings.Replace(cfg.Global.AuthUrl, "v3", "v2.0", 1)
+	} else if strings.HasSuffix(cfg.Global.AuthUrl, "5000") || strings.HasSuffix(cfg.Global.AuthUrl, "identity_admin") {
+		cfg.Global.AuthUrl = cfg.Global.AuthUrl + "/v2.0"
 	}
 
 	opts = toAuthOptions(cfg)

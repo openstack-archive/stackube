@@ -94,7 +94,6 @@ func (c *Controller) onAdd(obj interface{}) {
 			glog.Error(err)
 			return
 		}
-		return
 	} else {
 		if err := c.createNetworkForTenant(namespace.Name); err != nil {
 			glog.Error(err)

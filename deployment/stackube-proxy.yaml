@@ -46,6 +46,7 @@ spec:
     spec:
       hostNetwork: true
       hostPID: true
+      hostIPC: true
       serviceAccountName: stackube-proxy
       dnsPolicy: ClusterFirst
       restartPolicy: Always
@@ -108,7 +109,9 @@ spec:
                   name: stackube-config
                   key: kubernetes-port
           volumeMounts:
-            - mountPath: /var/run/netns
+            # mount as shared because mount propagation is not supported
+            # in kubernetes api yet.
+            - mountPath: /var/run/netns:shared
               name: netns
             - mountPath: /etc/ssl/certs
               name: certs

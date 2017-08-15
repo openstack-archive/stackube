@@ -14,6 +14,8 @@
 # limitations under the License.
 
 STACKUBE_ROOT=$(dirname "${BASH_SOURCE}")
+# TODO(harry) clone frakti? or maintain yaml?
+FRAKTI_ROOT=${}
 
 function install_docker {
     if is_ubuntu; then
@@ -155,6 +157,25 @@ EOF
     kubectl create -f ${STACKUBE_ROOT}/../deployment/stackube-proxy.yaml
 }
 
+function install_flexvolume_plugin {
+    cat >flexvolume-configmap.yaml <<EOF
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: flexvolume-config
+  namespace: kube-system
+data:
+  auth-url: "https://${SERVICE_HOST}/identity_admin/v2.0"
+  username: "admin"
+  password: "${ADMIN_PASSWORD}"
+  tenant-name: "admin"
+  region: "RegionOne"
+  keyring: "${KEYRING}" 
+EOF
+    kubectl create -f flexvolume-configmap.yaml
+    kubectl create -f ${STACKUBE_ROOT}/../deployment/flexvolume/flexvolume-ds.yaml
+}
+
 function install_node {
     if [ "${KUBEADM_TOKEN}" = "" ]; then
         echo "KUBEADM_TOKEN must be set for node"
@@ -215,6 +236,7 @@ function init_stackube {
     if is_service_enabled kubernetes_master; then
         install_master
         install_stackube_addons
+        install_flexvolume_plugin
     elif is_service_enabled kubernetes_node; then
         install_node
     fi

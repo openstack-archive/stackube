@@ -36,6 +36,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/kubernetes/pkg/util/async"
+	utilexec "k8s.io/utils/exec"
 
 	"git.openstack.org/openstack/stackube/pkg/openstack"
 	"git.openstack.org/openstack/stackube/pkg/util"
@@ -51,6 +52,7 @@ const (
 
 type Proxier struct {
 	clusterDNS        string
+	exec              utilexec.Interface
 	kubeClientset     *kubernetes.Clientset
 	osClient          *openstack.Client
 	factory           informers.SharedInformerFactory
@@ -107,11 +109,13 @@ func NewProxier(kubeConfig, openstackConfig string) (*Proxier, error) {
 	}
 
 	factory := informers.NewSharedInformerFactory(clientset, defaultResyncPeriod)
+	execer := utilexec.New()
 	proxier := &Proxier{
 		kubeClientset:    clientset,
 		osClient:         osClient,
 		factory:          factory,
 		clusterDNS:       clusterDNS,
+		exec:             execer,
 		endpointsChanges: newEndpointsChangeMap(""),
 		serviceChanges:   newServiceChangeMap(),
 		namespaceChanges: newNamespaceChangeMap(),
@@ -518,7 +522,7 @@ func (p *Proxier) syncProxyRules() {
 			continue
 		}
 
-		ipt := NewIptables(netns)
+		ipt := NewIptables(p.exec, netns)
 		// ensure chain STACKUBE-PREROUTING created.
 		err := ipt.ensureChain()
 		if err != nil {

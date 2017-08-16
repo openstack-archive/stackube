@@ -20,9 +20,9 @@ import (
 	"bytes"
 	"fmt"
 	"os/exec"
-	"syscall"
 
 	"github.com/golang/glog"
+	utilexec "k8s.io/utils/exec"
 )
 
 const (
@@ -39,11 +39,13 @@ const (
 )
 
 type Iptables struct {
+	exec      utilexec.Interface
 	namespace string
 }
 
-func NewIptables(namespace string) *Iptables {
+func NewIptables(exec utilexec.Interface, namespace string) *Iptables {
 	return &Iptables{
+		exec:      exec,
 		namespace: namespace,
 	}
 }
@@ -52,15 +54,15 @@ func NewIptables(namespace string) *Iptables {
 func (r *Iptables) runInNat(op, chain string, args []string) ([]byte, error) {
 	fullArgs := []string{"netns", "exec", r.namespace, "iptables", "-t", TableNAT, op, chain}
 	fullArgs = append(fullArgs, args...)
-	return exec.Command("ip", fullArgs...).CombinedOutput()
+	return r.exec.Command("ip", fullArgs...).CombinedOutput()
 }
 
 func (r *Iptables) restoreAll(data []byte) error {
 	glog.V(3).Infof("running iptables-restore with data %s", data)
 
 	fullArgs := []string{"netns", "exec", r.namespace, "iptables-restore", "--noflush", "--counters"}
-	cmd := exec.Command("ip", fullArgs...)
-	cmd.Stdin = bytes.NewBuffer(data)
+	cmd := r.exec.Command("ip", fullArgs...)
+	cmd.SetStdin(bytes.NewBuffer(data))
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("iptables-restore failed: %s: %v", output, err)
@@ -72,16 +74,15 @@ func (r *Iptables) restoreAll(data []byte) error {
 // ensureChain ensures chain STACKUBE-PREROUTING is created.
 func (r *Iptables) ensureChain() error {
 	output, err := r.runInNat(opCreateChain, ChainSKPrerouting, nil)
-	if err != nil {
-		if ee, ok := err.(*exec.ExitError); ok {
-			if status, ok := ee.Sys().(syscall.WaitStatus); ok {
-				if status.ExitStatus() == 1 {
-					return nil
-				}
-			}
-		}
+	if err == nil {
+		return nil
 	}
 
+	if ee, ok := err.(utilexec.ExitError); ok {
+		if ee.Exited() && ee.ExitStatus() == 1 {
+			return nil
+		}
+	}
 	return fmt.Errorf("ensure rule failed: %v: %s", err, output)
 }
 
@@ -91,13 +92,9 @@ func (r *Iptables) checkRule(chain string, args []string) (bool, error) {
 		return true, nil
 	}
 
-	if err != nil {
-		if ee, ok := err.(*exec.ExitError); ok {
-			if status, ok := ee.Sys().(syscall.WaitStatus); ok {
-				if status.ExitStatus() == 1 {
-					return false, nil
-				}
-			}
+	if ee, ok := err.(utilexec.ExitError); ok {
+		if ee.Exited() && ee.ExitStatus() == 1 {
+			return false, nil
 		}
 	}
 

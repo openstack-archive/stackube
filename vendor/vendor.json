@@ -380,10 +380,20 @@
 			"revisionTime": "2017-07-19T03:55:28Z"
 		},
 		{
+			"checksumSHA1": "zKKp5SZ3d3ycKe4EKMNT0BqAWBw=",
+			"path": "github.com/pmezard/go-difflib/difflib",
+			"revision": ""
+		},
+		{
 			"checksumSHA1": "5KvHyB1CImtwZT3fwNkNUlc8R0k=",
 			"path": "github.com/spf13/pflag",
 			"revision": "9ff6c6923cfffbcd502984b8e0c80539a94968b7",
 			"revisionTime": "2017-01-30T21:42:45Z"
+		},
+		{
+			"checksumSHA1": "5XAzjZrdlLh1mgd7xEvoK6LeLCA=",
+			"path": "github.com/stretchr/testify/assert",
+			"revision": ""
 		},
 		{
 			"checksumSHA1": "MWqyOvDMkW+XYe2RJ5mplvut+aE=",
@@ -1495,6 +1505,18 @@
 			"path": "k8s.io/kubernetes/pkg/util/async",
 			"revision": "e48ad7782e6e29db07875db803622b6d7a8322fd",
 			"revisionTime": "2017-07-20T03:05:39Z"
+		},
+		{
+			"checksumSHA1": "jXoOsj1amqo0Csd6Uz6cHA6DlRc=",
+			"path": "k8s.io/utils/exec",
+			"revision": "1f5ba483856f60b34bb29864d4129a8065d1c83b",
+			"revisionTime": "2017-08-13T22:21:55Z"
+		},
+		{
+			"checksumSHA1": "Iuy4JK6PfE8t8jbzGE+Oby/Apag=",
+			"path": "k8s.io/utils/exec/testing",
+			"revision": "1f5ba483856f60b34bb29864d4129a8065d1c83b",
+			"revisionTime": "2017-08-13T22:21:55Z"
 		}
 	],
 	"rootPath": "git.openstack.org/openstack/stackube"

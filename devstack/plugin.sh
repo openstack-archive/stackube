@@ -14,6 +14,8 @@
 # limitations under the License.
 
 STACKUBE_ROOT=$(dirname "${BASH_SOURCE}")
+# TODO(harry) clone frakti? or maintain yaml?
+FRAKTI_ROOT=${}
 
 function install_docker {
     if is_ubuntu; then
@@ -130,6 +132,9 @@ function install_stackube_addons {
 
     source openrc admin admin
     public_network=$(openstack network list --long -f value | grep External | awk '{print $1}')
+
+    keyring=`cat /etc/ceph/ceph.client.cinder.keyring  | grep 'key = ' | awk -F\ \=\  '{print $2}'`
+
     cat >stackube-configmap.yaml <<EOF
 kind: ConfigMap
 apiVersion: v1
@@ -149,10 +154,15 @@ data:
   user-gateway: "${CLUSTER_GATEWAY}"
   kubernetes-host: "${SERVICE_HOST}"
   kubernetes-port: "6443"
+  keyring: "${keyring}" 
 EOF
     kubectl create -f stackube-configmap.yaml
     kubectl create -f ${STACKUBE_ROOT}/../deployment/stackube.yaml
     kubectl create -f ${STACKUBE_ROOT}/../deployment/stackube-proxy.yaml
+}
+
+function install_flexvolume_plugin {
+    kubectl create -f ${STACKUBE_ROOT}/../deployment/flexvolume/flexvolume-ds.yaml
 }
 
 function install_node {
@@ -215,6 +225,7 @@ function init_stackube {
     if is_service_enabled kubernetes_master; then
         install_master
         install_stackube_addons
+        install_flexvolume_plugin
     elif is_service_enabled kubernetes_node; then
         install_node
     fi

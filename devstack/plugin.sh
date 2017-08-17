@@ -14,8 +14,6 @@
 # limitations under the License.
 
 STACKUBE_ROOT=$(dirname "${BASH_SOURCE}")
-# TODO(harry) clone frakti? or maintain yaml?
-FRAKTI_ROOT=${}
 
 function install_docker {
     if is_ubuntu; then
@@ -226,6 +224,9 @@ function init_stackube {
         install_master
         install_stackube_addons
         install_flexvolume_plugin
+        # approve kublelet's csr for the node.
+        # TODO(harry) what if in multi-node cluster?
+        kubectl certificate approve $(kubectl get csr | awk '/^csr/{print $1}')
     elif is_service_enabled kubernetes_node; then
         install_node
     fi

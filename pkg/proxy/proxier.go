@@ -552,11 +552,11 @@ func (p *Proxier) syncProxyRules() {
 			svcNameString := svcInfo.serviceNameString
 
 			// Step 5.1: check service type.
-			// Only ClusterIP service is supported. NodePort service is not supported since networks are L2 isolated.
-			// LoadBalancer service is handled in service controller.
+			// Only ClusterIP service is supported. We also handles clusterIP for other typed services, but note that:
+			// - NodePort service is not supported since networks are L2 isolated.
+			// - LoadBalancer service is handled in service controller.
 			if svcInfo.serviceType != v1.ServiceTypeClusterIP {
-				glog.V(3).Infof("Only ClusterIP service is supported, omitting service %q", svcName.NamespacedName)
-				continue
+				glog.V(3).Infof("Only service's clusterIP is handled here, omitting other fields of service %q (type=%q)", svcName.NamespacedName, svcInfo.serviceType)
 			}
 
 			// Step 5.2: check endpoints.

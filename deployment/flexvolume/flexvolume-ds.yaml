@@ -40,6 +40,7 @@ spec:
           [{"key": "dedicated", "value": "master", "effect": "NoSchedule" },
            {"key":"CriticalAddonsOnly", "operator":"Exists"}]
     spec:
+      hostNetwork: true
       securityContext: {}
       containers:
         - name: cinder-flexvolume

@@ -21,6 +21,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// GenerateRoleByNamespace generates default-role which has all the permissions in the namespace.
 func GenerateRoleByNamespace(namespace string) *v1beta1.Role {
 	policyRule := v1beta1.PolicyRule{
 		Verbs:     []string{v1beta1.VerbAll},
@@ -41,9 +42,10 @@ func GenerateRoleByNamespace(namespace string) *v1beta1.Role {
 	return role
 }
 
+// GenerateRoleBinding generates rolebinding which allows user "tenant" has deault-role in the tenant namespace.
 func GenerateRoleBinding(namespace, tenant string) *v1beta1.RoleBinding {
 	subject := v1beta1.Subject{
-		Kind: "Group",
+		Kind: "User",
 		Name: tenant,
 	}
 	roleRef := v1beta1.RoleRef{
@@ -66,6 +68,7 @@ func GenerateRoleBinding(namespace, tenant string) *v1beta1.RoleBinding {
 	return roleBinding
 }
 
+// GenerateServiceAccountRoleBinding generates rolebinding of service account in the namespace.
 func GenerateServiceAccountRoleBinding(namespace, tenant string) *v1beta1.RoleBinding {
 	subject := v1beta1.Subject{
 		Kind:      "ServiceAccount",
@@ -92,6 +95,7 @@ func GenerateServiceAccountRoleBinding(namespace, tenant string) *v1beta1.RoleBi
 	return roleBinding
 }
 
+// GenerateClusterRole generates namespace-creater ClusterRole which has the permission of namespaces resource.
 func GenerateClusterRole() *v1beta1.ClusterRole {
 	policyRule := v1beta1.PolicyRule{
 		Verbs:     []string{v1beta1.VerbAll},
@@ -112,6 +116,7 @@ func GenerateClusterRole() *v1beta1.ClusterRole {
 	return clusterRole
 }
 
+// GenerateClusterRoleBindingByTenant generate ClusterRoleBinding which allows anyone in the "tenant" group to create namespace.
 func GenerateClusterRoleBindingByTenant(tenant string) *v1beta1.ClusterRoleBinding {
 	subject := v1beta1.Subject{
 		Kind: "Group",

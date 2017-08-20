@@ -48,7 +48,7 @@ var (
 )
 
 func startControllers(kubeClient *kubernetes.Clientset,
-	osClient *openstack.Client, kubeExtClient *extclientset.Clientset) error {
+	osClient openstack.Interface, kubeExtClient *extclientset.Clientset) error {
 	// Creates a new Tenant controller
 	tenantController, err := tenant.NewTenantController(kubeClient, osClient, kubeExtClient)
 	if err != nil {
@@ -62,7 +62,7 @@ func startControllers(kubeClient *kubernetes.Clientset,
 	}
 
 	// Creates a new RBAC controller
-	rbacController, err := rbacmanager.NewRBACController(kubeClient, osClient.CRDClient, *userCIDR, *userGateway)
+	rbacController, err := rbacmanager.NewRBACController(kubeClient, osClient.GetCRDClient(), *userCIDR, *userGateway)
 	if err != nil {
 		return err
 	}
@@ -104,7 +104,7 @@ func startControllers(kubeClient *kubernetes.Clientset,
 	return nil
 }
 
-func initClients() (*kubernetes.Clientset, *openstack.Client, *extclientset.Clientset, error) {
+func initClients() (*kubernetes.Clientset, openstack.Interface, *extclientset.Clientset, error) {
 	// Create kubernetes client config. Use kubeconfig if given, otherwise assume in-cluster.
 	config, err := util.NewClusterConfig(*kubeconfig)
 	if err != nil {

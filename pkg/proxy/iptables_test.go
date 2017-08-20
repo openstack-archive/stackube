@@ -43,7 +43,8 @@ func TestEnsureChain(t *testing.T) {
 			func(cmd string, args ...string) exec.Cmd { return fakeexec.InitFakeCmd(&fcmd, cmd, args...) },
 		},
 	}
-	ipt := NewIptables(&fexec, "FOO")
+	ipt := NewIptables(&fexec)
+	ipt.addNetns("FOO")
 	// Success.
 	err := ipt.ensureChain()
 	fmt.Println(err)
@@ -80,7 +81,9 @@ func TestEnsureRuleAlreadyExists(t *testing.T) {
 			func(cmd string, args ...string) exec.Cmd { return fakeexec.InitFakeCmd(&fcmd, cmd, args...) },
 		},
 	}
-	ipt := NewIptables(&fexec, "FOO")
+	ipt := NewIptables(&fexec)
+	ipt.addNetns("FOO")
+
 	err := ipt.ensureRule(opAddpendRule, ChainPrerouting, []string{"abc", "123"})
 	if err != nil {
 		t.Errorf("expected success, got %v", err)
@@ -108,7 +111,9 @@ func TestEnsureRuleNew(t *testing.T) {
 			func(cmd string, args ...string) exec.Cmd { return fakeexec.InitFakeCmd(&fcmd, cmd, args...) },
 		},
 	}
-	ipt := NewIptables(&fexec, "FOO")
+	ipt := NewIptables(&fexec)
+	ipt.addNetns("FOO")
+
 	err := ipt.ensureRule(opAddpendRule, ChainPrerouting, []string{"abc", "123"})
 	if err != nil {
 		t.Errorf("expected success, got %v", err)
@@ -133,7 +138,9 @@ func TestEnsureRuleErrorChecking(t *testing.T) {
 			func(cmd string, args ...string) exec.Cmd { return fakeexec.InitFakeCmd(&fcmd, cmd, args...) },
 		},
 	}
-	ipt := NewIptables(&fexec, "FOO")
+	ipt := NewIptables(&fexec)
+	ipt.addNetns("FOO")
+
 	err := ipt.ensureRule(opAddpendRule, ChainPrerouting, []string{"abc", "123"})
 	if err == nil {
 		t.Errorf("expected failure")
@@ -158,7 +165,9 @@ func TestEnsureRuleErrorCreating(t *testing.T) {
 			func(cmd string, args ...string) exec.Cmd { return fakeexec.InitFakeCmd(&fcmd, cmd, args...) },
 		},
 	}
-	ipt := NewIptables(&fexec, "FOO")
+	ipt := NewIptables(&fexec)
+	ipt.addNetns("FOO")
+
 	err := ipt.ensureRule(opAddpendRule, ChainPrerouting, []string{"abc", "123"})
 	if err == nil {
 		t.Errorf("expected failure")
@@ -179,7 +188,9 @@ func TestRestoreAll(t *testing.T) {
 			func(cmd string, args ...string) exec.Cmd { return fakeexec.InitFakeCmd(&fcmd, cmd, args...) },
 		},
 	}
-	ipt := NewIptables(&fexec, "FOO")
+	ipt := NewIptables(&fexec)
+	ipt.addNetns("FOO")
+
 	err := ipt.restoreAll([]byte{})
 	if err != nil {
 		t.Errorf("expected success, got %v", err)
@@ -190,6 +201,34 @@ func TestRestoreAll(t *testing.T) {
 	}
 
 	if !sets.NewString(fcmd.CombinedOutputLog[0]...).HasAll("ip", "netns", "exec", "FOO", "iptables-restore", "--noflush", "--counters") {
+		t.Errorf("wrong CombinedOutput() log, got %s", fcmd.CombinedOutputLog[0])
+	}
+}
+
+func TestNetnsExist(t *testing.T) {
+	fcmd := fakeexec.FakeCmd{
+		CombinedOutputScript: []fakeexec.FakeCombinedOutputAction{
+			func() ([]byte, error) { return []byte{}, nil },
+		},
+	}
+	fexec := fakeexec.FakeExec{
+		CommandScript: []fakeexec.FakeCommandAction{
+			func(cmd string, args ...string) exec.Cmd { return fakeexec.InitFakeCmd(&fcmd, cmd, args...) },
+		},
+	}
+	ipt := NewIptables(&fexec)
+	ipt.addNetns("FOO")
+
+	ok := ipt.netnsExist()
+	if !ok {
+		t.Errorf("expected true, got %v", ok)
+	}
+
+	if fcmd.CombinedOutputCalls != 1 {
+		t.Errorf("expected 1 CombinedOutput() calls, got %d", fcmd.CombinedOutputCalls)
+	}
+
+	if !sets.NewString(fcmd.CombinedOutputLog[0]...).HasAll("ip", "netns", "pids", "FOO") {
 		t.Errorf("wrong CombinedOutput() log, got %s", fcmd.CombinedOutputLog[0])
 	}
 }

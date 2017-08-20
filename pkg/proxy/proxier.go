@@ -50,11 +50,13 @@ const (
 	burstSyncs          = 2
 )
 
+// Proxier is an iptables based proxy for connections between a localhost:port
+// and services that provide the actual backends in each network.
 type Proxier struct {
 	clusterDNS        string
-	exec              utilexec.Interface
 	kubeClientset     *kubernetes.Clientset
-	osClient          *openstack.Client
+	osClient          openstack.Interface
+	iptables          iptablesInterface
 	factory           informers.SharedInformerFactory
 	namespaceInformer informersV1.NamespaceInformer
 	serviceInformer   informersV1.ServiceInformer
@@ -72,7 +74,7 @@ type Proxier struct {
 	initialized int32
 	// endpointsSynced and servicesSynced are set to true when corresponding
 	// objects are synced after startup. This is used to avoid updating iptables
-	// with some partial data after kube-proxy restart.
+	// with some partial data after stackube-proxy restart.
 	endpointsSynced bool
 	servicesSynced  bool
 	namespaceSynced bool
@@ -109,13 +111,15 @@ func NewProxier(kubeConfig, openstackConfig string) (*Proxier, error) {
 	}
 
 	factory := informers.NewSharedInformerFactory(clientset, defaultResyncPeriod)
+
 	execer := utilexec.New()
+
 	proxier := &Proxier{
 		kubeClientset:    clientset,
 		osClient:         osClient,
+		iptables:         NewIptables(execer),
 		factory:          factory,
 		clusterDNS:       clusterDNS,
-		exec:             execer,
 		endpointsChanges: newEndpointsChangeMap(""),
 		serviceChanges:   newServiceChangeMap(),
 		namespaceChanges: newNamespaceChangeMap(),
@@ -129,17 +133,17 @@ func NewProxier(kubeConfig, openstackConfig string) (*Proxier, error) {
 	return proxier, nil
 }
 
-func (proxier *Proxier) setInitialized(value bool) {
+func (p *Proxier) setInitialized(value bool) {
 	var initialized int32
 	if value {
 		initialized = 1
 	}
 
-	atomic.StoreInt32(&proxier.initialized, initialized)
+	atomic.StoreInt32(&p.initialized, initialized)
 }
 
-func (proxier *Proxier) isInitialized() bool {
-	return atomic.LoadInt32(&proxier.initialized) > 0
+func (p *Proxier) isInitialized() bool {
+	return atomic.LoadInt32(&p.initialized) > 0
 }
 
 func (p *Proxier) onServiceAdded(obj interface{}) {
@@ -317,6 +321,7 @@ func (p *Proxier) onNamespaceDeleted(obj interface{}) {
 	}
 }
 
+// RegisterInformers registers informers which informer on namespaces，services and endpoints change.
 func (p *Proxier) RegisterInformers() {
 	p.namespaceInformer = p.factory.Core().V1().Namespaces()
 	p.namespaceInformer.Informer().AddEventHandlerWithResyncPeriod(
@@ -343,6 +348,7 @@ func (p *Proxier) RegisterInformers() {
 		}, time.Minute)
 }
 
+// StartNamespaceInformer starts namespace informer.
 func (p *Proxier) StartNamespaceInformer(stopCh <-chan struct{}) error {
 	if !cache.WaitForCacheSync(stopCh, p.namespaceInformer.Informer().HasSynced) {
 		return fmt.Errorf("failed to cache namespaces")
@@ -362,6 +368,7 @@ func (p *Proxier) StartNamespaceInformer(stopCh <-chan struct{}) error {
 	return nil
 }
 
+// StartServiceInformer starts service informer.
 func (p *Proxier) StartServiceInformer(stopCh <-chan struct{}) error {
 	if !cache.WaitForCacheSync(stopCh, p.serviceInformer.Informer().HasSynced) {
 		return fmt.Errorf("failed to cache services")
@@ -381,6 +388,7 @@ func (p *Proxier) StartServiceInformer(stopCh <-chan struct{}) error {
 	return nil
 }
 
+// StartEndpointInformer starts endpoint informer.
 func (p *Proxier) StartEndpointInformer(stopCh <-chan struct{}) error {
 	if !cache.WaitForCacheSync(stopCh, p.endpointInformer.Informer().HasSynced) {
 		return fmt.Errorf("failed to cache endpoints")
@@ -399,11 +407,13 @@ func (p *Proxier) StartEndpointInformer(stopCh <-chan struct{}) error {
 	return nil
 }
 
+// StartInformerFactory starts informer factory.
 func (p *Proxier) StartInformerFactory(stopCh <-chan struct{}) error {
 	p.factory.Start(stopCh)
 	return nil
 }
 
+// SyncLoop runs periodic work.  This is expected to run as a goroutine or as the main loop of the app.  It does not return.
 func (p *Proxier) SyncLoop() error {
 	p.syncRunner.Loop(wait.NeverStop)
 	return nil
@@ -517,20 +527,22 @@ func (p *Proxier) syncProxyRules() {
 
 		// Step 3: compose iptables chain.
 		netns := getRouterNetns(nsInfo.router)
-		if !netnsExist(netns) {
+
+		// populates netns to iptables.
+		p.iptables.setNetns(netns)
+		if !p.iptables.netnsExist() {
 			glog.V(3).Infof("Netns %q doesn't exist, omit the services in namespace %q", netns, namespace)
 			continue
 		}
 
-		ipt := NewIptables(p.exec, netns)
 		// ensure chain STACKUBE-PREROUTING created.
-		err := ipt.ensureChain()
+		err := p.iptables.ensureChain()
 		if err != nil {
 			glog.Errorf("EnsureChain %q in netns %q failed: %v", ChainSKPrerouting, netns, err)
 			continue
 		}
 		// link STACKUBE-PREROUTING chain.
-		err = ipt.ensureRule(opAddpendRule, ChainPrerouting, []string{
+		err = p.iptables.ensureRule(opAddpendRule, ChainPrerouting, []string{
 			"-m", "comment", "--comment", "stackube service portals", "-j", ChainSKPrerouting,
 		})
 		if err != nil {
@@ -596,7 +608,7 @@ func (p *Proxier) syncProxyRules() {
 		writeLine(iptablesData, []string{"COMMIT"}...)
 
 		// Step 6: execute iptables-restore.
-		err = ipt.restoreAll(iptablesData.Bytes())
+		err = p.iptables.restoreAll(iptablesData.Bytes())
 		if err != nil {
 			glog.Errorf("Failed to execute iptables-restore: %v", err)
 			continue

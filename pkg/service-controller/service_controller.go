@@ -73,7 +73,7 @@ type ServiceController struct {
 	cache *serviceCache
 
 	kubeClientset    *kubernetes.Clientset
-	osClient         *openstack.Client
+	osClient         openstack.Interface
 	factory          informers.SharedInformerFactory
 	serviceInformer  informersV1.ServiceInformer
 	endpointInformer informersV1.EndpointsInformer
@@ -85,7 +85,7 @@ type ServiceController struct {
 // NewServiceController returns a new service controller to keep openstack lbaas resources
 // (load balancers) in sync with the registry.
 func NewServiceController(kubeClient *kubernetes.Clientset,
-	osClient *openstack.Client) (*ServiceController, error) {
+	osClient openstack.Interface) (*ServiceController, error) {
 	factory := informers.NewSharedInformerFactory(kubeClient, resyncPeriod)
 	s := &ServiceController{
 		osClient:         osClient,

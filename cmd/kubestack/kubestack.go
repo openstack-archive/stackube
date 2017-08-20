@@ -38,8 +38,6 @@ import (
 	cniSpecVersion "github.com/containernetworking/cni/pkg/version"
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/golang/glog"
-	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/portsbinding"
-	"github.com/gophercloud/gophercloud/openstack/networking/v2/ports"
 
 	// import plugins
 	_ "git.openstack.org/openstack/stackube/pkg/kubestack/plugins/openvswitch"
@@ -54,7 +52,7 @@ var (
 
 // OpenStack describes openstack client and its plugins.
 type OpenStack struct {
-	Client openstack.Client
+	Client openstack.Interface
 	Plugin plugins.PluginInterface
 }
 
@@ -124,15 +122,15 @@ func initOpenstack(stdinData []byte) (OpenStack, string, error) {
 	}
 
 	os := OpenStack{
-		Client: *openStackClient,
+		Client: openStackClient,
 	}
 
 	// Init plugin
-	pluginName := os.Client.PluginName
+	pluginName := os.Client.GetPluginName()
 	if pluginName == "" {
 		pluginName = "ovs"
 	}
-	integrationBridge := os.Client.IntegrationBridge
+	integrationBridge := os.Client.GetIntegrationBridge()
 	if integrationBridge == "" {
 		integrationBridge = "br-int"
 	}
@@ -194,16 +192,11 @@ func cmdAdd(args *skel.CmdArgs) error {
 
 	deviceOwner := fmt.Sprintf("compute:%s", getHostName())
 	if port.DeviceOwner != deviceOwner {
-		// Update hostname in order to make sure it is correct
-		updateOpts := portsbinding.UpdateOpts{
-			HostID: getHostName(),
-			UpdateOptsBuilder: ports.UpdateOpts{
-				DeviceOwner: deviceOwner,
-			},
-		}
-		_, err = portsbinding.Update(os.Client.Network, port.ID, updateOpts).Extract()
+		err := os.Client.UpdatePortsBinding(port.ID, deviceOwner)
 		if err != nil {
-			ports.Delete(os.Client.Network, port.ID)
+			if os.Client.DeletePortByID(port.ID) != nil {
+				glog.Warningf("Delete port %s failed", port.ID)
+			}
 			glog.Errorf("Update port %s failed: %v", portName, err)
 			return err
 		}
@@ -214,7 +207,7 @@ func cmdAdd(args *skel.CmdArgs) error {
 	subnet, err := os.Client.GetProviderSubnet(port.FixedIPs[0].SubnetID)
 	if err != nil {
 		glog.Errorf("Get info of subnet %s failed: %v", port.FixedIPs[0].SubnetID, err)
-		if nil != ports.Delete(os.Client.Network, port.ID).ExtractErr() {
+		if os.Client.DeletePortByID(port.ID) != nil {
 			glog.Warningf("Delete port %s failed", port.ID)
 		}
 		return err
@@ -247,7 +240,7 @@ func cmdAdd(args *skel.CmdArgs) error {
 		subnet.Gateway, args.IfName, netnsName)
 	if err != nil {
 		glog.Errorf("SetupInterface failed: %v", err)
-		if nil != ports.Delete(os.Client.Network, port.ID).ExtractErr() {
+		if os.Client.DeletePortByID(port.ID) != nil {
 			glog.Warningf("Delete port %s failed", port.ID)
 		}
 		return err
@@ -316,9 +309,9 @@ func cmdDel(args *skel.CmdArgs) error {
 	}
 
 	// Delete port from openstack
-	err = osClient.Client.DeletePort(portName)
+	err = osClient.Client.DeletePortByName(portName)
 	if err != nil {
-		glog.Errorf("DeletePort %s failed: %v", portName, err)
+		glog.Errorf("Delete port %s failed: %v", portName, err)
 		return err
 	}
 

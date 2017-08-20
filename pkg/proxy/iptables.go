@@ -19,7 +19,6 @@ package proxy
 import (
 	"bytes"
 	"fmt"
-	"os/exec"
 
 	"github.com/golang/glog"
 	utilexec "k8s.io/utils/exec"
@@ -38,16 +37,33 @@ const (
 	opDeleteRule  = "-D"
 )
 
+// iptablesInterface is an injectable interface for running iptables commands.
+type iptablesInterface interface {
+	// ensureChain ensures chain STACKUBE-PREROUTING is created.
+	ensureChain() error
+	// ensureRule links STACKUBE-PREROUTING chain.
+	ensureRule(op, chain string, args []string) error
+	// restoreAll runs `iptables-restore` passing data through []byte.
+	restoreAll(data []byte) error
+	// netnsExist checks netns exist or not.
+	netnsExist() bool
+	// setNetns populates namespace of iptables.
+	setNetns(netns string)
+}
+
 type Iptables struct {
 	exec      utilexec.Interface
 	namespace string
 }
 
-func NewIptables(exec utilexec.Interface, namespace string) *Iptables {
+func NewIptables(exec utilexec.Interface) iptablesInterface {
 	return &Iptables{
-		exec:      exec,
-		namespace: namespace,
+		exec: exec,
 	}
+}
+
+func (r *Iptables) setNetns(netns string) {
+	r.namespace = netns
 }
 
 // runInNat executes iptables command in nat table.
@@ -132,11 +148,11 @@ func writeLine(buf *bytes.Buffer, words ...string) {
 	}
 }
 
-func netnsExist(netns string) bool {
-	args := []string{"netns", "pids", netns}
-	out, err := exec.Command("ip", args...).CombinedOutput()
+func (r *Iptables) netnsExist() bool {
+	args := []string{"netns", "pids", r.namespace}
+	out, err := r.exec.Command("ip", args...).CombinedOutput()
 	if err != nil {
-		glog.V(5).Infof("Checking netns %q failed: %s: %v", netns, out, err)
+		glog.V(5).Infof("Checking netns %q failed: %s: %v", r.namespace, out, err)
 		return false
 	}
 

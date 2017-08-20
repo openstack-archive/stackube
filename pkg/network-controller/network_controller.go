@@ -52,7 +52,7 @@ const (
 type NetworkController struct {
 	k8sclient       *kubernetes.Clientset
 	kubeCRDClient   *kubecrd.CRDClient
-	driver          *openstack.Client
+	driver          openstack.Interface
 	networkInformer cache.Controller
 }
 
@@ -69,7 +69,7 @@ func (c *NetworkController) Run(stopCh <-chan struct{}) error {
 	return nil
 }
 
-func NewNetworkController(kubeClient *kubernetes.Clientset, osClient *openstack.Client, kubeExtClient *apiextensionsclient.Clientset) (*NetworkController, error) {
+func NewNetworkController(kubeClient *kubernetes.Clientset, osClient openstack.Interface, kubeExtClient *apiextensionsclient.Clientset) (*NetworkController, error) {
 	// initialize CRD if it does not exist
 	_, err := kubecrd.CreateNetworkCRD(kubeExtClient)
 	if err != nil && !apierrors.IsAlreadyExists(err) {
@@ -77,13 +77,13 @@ func NewNetworkController(kubeClient *kubernetes.Clientset, osClient *openstack.
 	}
 
 	source := cache.NewListWatchFromClient(
-		osClient.CRDClient.Client,
+		osClient.GetCRDClient().Client,
 		crv1.NetworkResourcePlural,
 		apiv1.NamespaceAll,
 		fields.Everything())
 	networkController := &NetworkController{
 		k8sclient:     kubeClient,
-		kubeCRDClient: osClient.CRDClient,
+		kubeCRDClient: osClient.GetCRDClient(),
 		driver:        osClient,
 	}
 	_, networkInformer := cache.NewInformer(

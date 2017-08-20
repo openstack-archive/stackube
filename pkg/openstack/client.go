@@ -63,6 +63,56 @@ var (
 	ErrMultipleResults = errors.New("MultipleResults")
 )
 
+// Interface should be implemented by a openstack client.
+type Interface interface {
+	// CreateTenant creates tenant by tenantname.
+	CreateTenant(tenantName string) (string, error)
+	// DeleteTenant deletes tenant by tenantName.
+	DeleteTenant(tenantName string) error
+	// GetTenantIDFromName gets tenantID by tenantName.
+	GetTenantIDFromName(tenantName string) (string, error)
+	// CheckTenantID checks tenant exist or not.
+	CheckTenantID(tenantID string) (bool, error)
+	// CreateUser creates user with username, password in the tenant.
+	CreateUser(username, password, tenantID string) error
+	// DeleteAllUsersOnTenant deletes all users on the tenant.
+	DeleteAllUsersOnTenant(tenantName string) error
+	// CreateNetwork creates network.
+	CreateNetwork(network *drivertypes.Network) error
+	// GetNetworkByID gets network by networkID.
+	GetNetworkByID(networkID string) (*drivertypes.Network, error)
+	// GetNetwork gets networks by networkName.
+	GetNetwork(networkName string) (*drivertypes.Network, error)
+	// DeleteNetwork deletes network by networkName.
+	DeleteNetwork(networkName string) error
+	// GetProviderSubnet gets provider subnet by id
+	GetProviderSubnet(osSubnetID string) (*drivertypes.Subnet, error)
+	// CreatePort creates port by neworkID, tenantID and portName.
+	CreatePort(networkID, tenantID, portName string) (*portsbinding.Port, error)
+	// GetPort gets port by portName.
+	GetPort(name string) (*ports.Port, error)
+	// ListPorts lists ports by networkID and deviceOwner.
+	ListPorts(networkID, deviceOwner string) ([]ports.Port, error)
+	// DeletePortByName deletes port by portName.
+	DeletePortByName(portName string) error
+	// DeletePortByID deletes port by portID.
+	DeletePortByID(portID string) error
+	// UpdatePortsBinding updates port binding.
+	UpdatePortsBinding(portID, deviceOwner string) error
+	// LoadBalancerExist returns whether a load balancer has already been exist.
+	LoadBalancerExist(name string) (bool, error)
+	// EnsureLoadBalancer ensures a load balancer is created.
+	EnsureLoadBalancer(lb *LoadBalancer) (*LoadBalancerStatus, error)
+	// EnsureLoadBalancerDeleted ensures a load balancer is deleted.
+	EnsureLoadBalancerDeleted(name string) error
+	// GetCRDClient returns the CRDClient.
+	GetCRDClient() *crdClient.CRDClient
+	// GetPluginName returns the plugin name.
+	GetPluginName() string
+	// GetIntegrationBridge returns the integration bridge name.
+	GetIntegrationBridge() string
+}
+
 type Client struct {
 	Identity          *gophercloud.ServiceClient
 	Provider          *gophercloud.ProviderClient
@@ -101,7 +151,7 @@ func toAuthOptions(cfg Config) gophercloud.AuthOptions {
 	}
 }
 
-func NewClient(config string, kubeConfig string) (*Client, error) {
+func NewClient(config string, kubeConfig string) (Interface, error) {
 	var opts gophercloud.AuthOptions
 	cfg, err := readConfig(config)
 	if err != nil {
@@ -170,7 +220,22 @@ func readConfig(config string) (Config, error) {
 	return cfg, nil
 }
 
-func (c *Client) GetTenantIDFromName(tenantName string) (string, error) {
+// GetCRDClient returns the CRDClient.
+func (os *Client) GetCRDClient() *crdClient.CRDClient {
+	return os.CRDClient
+}
+
+// GetPluginName returns the plugin name.
+func (os *Client) GetPluginName() string {
+	return os.PluginName
+}
+
+// GetIntegrationBridge returns the integration bridge name.
+func (os *Client) GetIntegrationBridge() string {
+	return os.IntegrationBridge
+}
+
+func (os *Client) GetTenantIDFromName(tenantName string) (string, error) {
 	if util.IsSystemNamespace(tenantName) {
 		tenantName = util.SystemTenant
 	}
@@ -180,7 +245,7 @@ func (c *Client) GetTenantIDFromName(tenantName string) (string, error) {
 		tenant *crv1.Tenant
 		err    error
 	)
-	if tenant, err = c.CRDClient.GetTenant(tenantName); err != nil {
+	if tenant, err = os.CRDClient.GetTenant(tenantName); err != nil {
 		return "", err
 	}
 	if tenant.Spec.TenantID != "" {
@@ -189,7 +254,7 @@ func (c *Client) GetTenantIDFromName(tenantName string) (string, error) {
 
 	// Otherwise, fetch tenantID from OpenStack
 	var tenantID string
-	err = tenants.List(c.Identity, nil).EachPage(func(page pagination.Page) (bool, error) {
+	err = tenants.List(os.Identity, nil).EachPage(func(page pagination.Page) (bool, error) {
 		tenantList, err1 := tenants.ExtractTenants(page)
 		if err1 != nil {
 			return false, err1
@@ -211,35 +276,35 @@ func (c *Client) GetTenantIDFromName(tenantName string) (string, error) {
 	return tenantID, nil
 }
 
-func (c *Client) CreateTenant(tenantName string) (string, error) {
+func (os *Client) CreateTenant(tenantName string) (string, error) {
 	createOpts := tenants.CreateOpts{
 		Name:        tenantName,
 		Description: "stackube",
 		Enabled:     gophercloud.Enabled,
 	}
 
-	_, err := tenants.Create(c.Identity, createOpts).Extract()
+	_, err := tenants.Create(os.Identity, createOpts).Extract()
 	if err != nil && !IsAlreadyExists(err) {
 		glog.Errorf("Failed to create tenant %s: %v", tenantName, err)
 		return "", err
 	}
 	glog.V(4).Infof("Tenant %s created", tenantName)
-	tenantID, err := c.GetTenantIDFromName(tenantName)
+	tenantID, err := os.GetTenantIDFromName(tenantName)
 	if err != nil {
 		return "", err
 	}
 	return tenantID, nil
 }
 
-func (c *Client) DeleteTenant(tenantName string) error {
-	return tenants.List(c.Identity, nil).EachPage(func(page pagination.Page) (bool, error) {
+func (os *Client) DeleteTenant(tenantName string) error {
+	return tenants.List(os.Identity, nil).EachPage(func(page pagination.Page) (bool, error) {
 		tenantList, err := tenants.ExtractTenants(page)
 		if err != nil {
 			return false, err
 		}
 		for _, t := range tenantList {
 			if t.Name == tenantName {
-				err := tenants.Delete(c.Identity, t.ID).ExtractErr()
+				err := tenants.Delete(os.Identity, t.ID).ExtractErr()
 				if err != nil {
 					glog.Errorf("Delete openstack tenant %s error: %v", tenantName, err)
 					return false, err
@@ -252,14 +317,14 @@ func (c *Client) DeleteTenant(tenantName string) error {
 	})
 }
 
-func (c *Client) CreateUser(username, password, tenantID string) error {
+func (os *Client) CreateUser(username, password, tenantID string) error {
 	opts := users.CreateOpts{
 		Name:     username,
 		TenantID: tenantID,
 		Enabled:  gophercloud.Enabled,
 		Password: password,
 	}
-	_, err := users.Create(c.Identity, opts).Extract()
+	_, err := users.Create(os.Identity, opts).Extract()
 	if err != nil && !IsAlreadyExists(err) {
 		glog.Errorf("Failed to create user %s: %v", username, err)
 		return err
@@ -268,18 +333,18 @@ func (c *Client) CreateUser(username, password, tenantID string) error {
 	return nil
 }
 
-func (c *Client) DeleteAllUsersOnTenant(tenantName string) error {
-	tenantID, err := c.GetTenantIDFromName(tenantName)
+func (os *Client) DeleteAllUsersOnTenant(tenantName string) error {
+	tenantID, err := os.GetTenantIDFromName(tenantName)
 	if err != nil {
 		return nil
 	}
-	return users.ListUsers(c.Identity, tenantID).EachPage(func(page pagination.Page) (bool, error) {
+	return users.ListUsers(os.Identity, tenantID).EachPage(func(page pagination.Page) (bool, error) {
 		usersList, err := users.ExtractUsers(page)
 		if err != nil {
 			return false, err
 		}
 		for _, u := range usersList {
-			res := users.Delete(c.Identity, u.ID)
+			res := users.Delete(os.Identity, u.ID)
 			if res.Err != nil {
 				glog.Errorf("Delete openstack user %s error: %v", u.Name, err)
 				return false, err
@@ -824,8 +889,8 @@ func (os *Client) ListPorts(networkID, deviceOwner string) ([]ports.Port, error)
 	return results, nil
 }
 
-// Delete port by portName
-func (os *Client) DeletePort(portName string) error {
+// DeletePortByName deletes port by portName
+func (os *Client) DeletePortByName(portName string) error {
 	port, err := os.GetPort(portName)
 	if err == util.ErrNotFound {
 		glog.V(4).Infof("Port %s already deleted", portName)
@@ -844,4 +909,28 @@ func (os *Client) DeletePort(portName string) error {
 	}
 
 	return nil
+}
+
+// DeletePortByID deletes port by portID.
+func (os *Client) DeletePortByID(portID string) error {
+	err := ports.Delete(os.Network, portID).ExtractErr()
+	if err != nil {
+		glog.Errorf("Delete openstack port portID %s failed: %v", portID, err)
+		return err
+	}
+
+	return nil
+}
+
+// UpdatePortsBinding updates port binding.
+func (os *Client) UpdatePortsBinding(portID, deviceOwner string) error {
+	// Update hostname in order to make sure it is correct
+	updateOpts := portsbinding.UpdateOpts{
+		HostID: getHostName(),
+		UpdateOptsBuilder: ports.UpdateOpts{
+			DeviceOwner: deviceOwner,
+		},
+	}
+	_, err := portsbinding.Update(os.Network, portID, updateOpts).Extract()
+	return err
 }

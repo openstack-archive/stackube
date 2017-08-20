@@ -38,12 +38,12 @@ import (
 type TenantController struct {
 	k8sClient       *kubernetes.Clientset
 	kubeCRDClient   *crdClient.CRDClient
-	openstackClient *openstack.Client
+	openstackClient openstack.Interface
 }
 
 // NewTenantController creates a new tenant controller.
 func NewTenantController(kubeClient *kubernetes.Clientset,
-	osClient *openstack.Client,
+	osClient openstack.Interface,
 	kubeExtClient *apiextensionsclient.Clientset) (*TenantController, error) {
 	// initialize CRD if it does not exist
 	_, err := crdClient.CreateTenantCRD(kubeExtClient)
@@ -52,7 +52,7 @@ func NewTenantController(kubeClient *kubernetes.Clientset,
 	}
 
 	c := &TenantController{
-		kubeCRDClient:   osClient.CRDClient,
+		kubeCRDClient:   osClient.GetCRDClient(),
 		k8sClient:       kubeClient,
 		openstackClient: osClient,
 	}

@@ -99,6 +99,7 @@ First create configure file for Stackube.
     user-gateway: "10.244.0.1"
     kubernetes-host: "192.168.0.33"
     kubernetes-port: "6443"
+    keyring: "AQBZU5lZ/Z7lEBAAJuC17RYjjqIUANs2QVn7pw=="
   EOF
 
 Then deploy stackube components:

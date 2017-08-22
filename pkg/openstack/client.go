@@ -71,8 +71,8 @@ type Interface interface {
 	DeleteTenant(tenantName string) error
 	// GetTenantIDFromName gets tenantID by tenantName.
 	GetTenantIDFromName(tenantName string) (string, error)
-	// CheckTenantID checks tenant exist or not.
-	CheckTenantID(tenantID string) (bool, error)
+	// CheckTenantByID checks tenant exist or not by tenantID.
+	CheckTenantByID(tenantID string) (bool, error)
 	// CreateUser creates user with username, password in the tenant.
 	CreateUser(username, password, tenantID string) error
 	// DeleteAllUsersOnTenant deletes all users on the tenant.
@@ -81,8 +81,8 @@ type Interface interface {
 	CreateNetwork(network *drivertypes.Network) error
 	// GetNetworkByID gets network by networkID.
 	GetNetworkByID(networkID string) (*drivertypes.Network, error)
-	// GetNetwork gets networks by networkName.
-	GetNetwork(networkName string) (*drivertypes.Network, error)
+	// GetNetworkByName gets network by networkName.
+	GetNetworkByName(networkName string) (*drivertypes.Network, error)
 	// DeleteNetwork deletes network by networkName.
 	DeleteNetwork(networkName string) error
 	// GetProviderSubnet gets provider subnet by id
@@ -235,6 +235,7 @@ func (os *Client) GetIntegrationBridge() string {
 	return os.IntegrationBridge
 }
 
+// GetTenantIDFromName gets tenantID by tenantName.
 func (os *Client) GetTenantIDFromName(tenantName string) (string, error) {
 	if util.IsSystemNamespace(tenantName) {
 		tenantName = util.SystemTenant
@@ -276,6 +277,7 @@ func (os *Client) GetTenantIDFromName(tenantName string) (string, error) {
 	return tenantID, nil
 }
 
+// CreateTenant creates tenant by tenantname.
 func (os *Client) CreateTenant(tenantName string) (string, error) {
 	createOpts := tenants.CreateOpts{
 		Name:        tenantName,
@@ -296,6 +298,7 @@ func (os *Client) CreateTenant(tenantName string) (string, error) {
 	return tenantID, nil
 }
 
+// DeleteTenant deletes tenant by tenantName.
 func (os *Client) DeleteTenant(tenantName string) error {
 	return tenants.List(os.Identity, nil).EachPage(func(page pagination.Page) (bool, error) {
 		tenantList, err := tenants.ExtractTenants(page)
@@ -317,6 +320,7 @@ func (os *Client) DeleteTenant(tenantName string) error {
 	})
 }
 
+// CreateUser creates user with username, password in the tenant.
 func (os *Client) CreateUser(username, password, tenantID string) error {
 	opts := users.CreateOpts{
 		Name:     username,
@@ -333,6 +337,7 @@ func (os *Client) CreateUser(username, password, tenantID string) error {
 	return nil
 }
 
+// DeleteAllUsersOnTenant deletes all users on the tenant.
 func (os *Client) DeleteAllUsersOnTenant(tenantName string) error {
 	tenantID, err := os.GetTenantIDFromName(tenantName)
 	if err != nil {
@@ -368,7 +373,7 @@ func reasonForError(err error) int {
 	return 0
 }
 
-// Get tenant's network by tenantID(tenant and network are one to one mapping in stackube)
+// GetOpenStackNetworkByTenantID gets tenant's network by tenantID(tenant and network are one to one mapping in stackube)
 func (os *Client) GetOpenStackNetworkByTenantID(tenantID string) (*networks.Network, error) {
 	opts := networks.ListOpts{TenantID: tenantID}
 	return os.getOpenStackNetwork(&opts)
@@ -410,7 +415,7 @@ func (os *Client) getOpenStackNetwork(opts *networks.ListOpts) (*networks.Networ
 	return osNetwork, err
 }
 
-// Get provider subnet by id
+// GetProviderSubnet gets provider subnet by subnetID
 func (os *Client) GetProviderSubnet(osSubnetID string) (*drivertypes.Subnet, error) {
 	s, err := subnets.Get(os.Network, osSubnetID).Extract()
 	if err != nil {
@@ -439,7 +444,7 @@ func (os *Client) GetProviderSubnet(osSubnetID string) (*drivertypes.Subnet, err
 	return &providerSubnet, nil
 }
 
-// Get network by networkID
+// GetNetworkByID gets network by networkID
 func (os *Client) GetNetworkByID(networkID string) (*drivertypes.Network, error) {
 	osNetwork, err := os.getOpenStackNetworkByID(networkID)
 	if err != nil {
@@ -450,8 +455,8 @@ func (os *Client) GetNetworkByID(networkID string) (*drivertypes.Network, error)
 	return os.OSNetworktoProviderNetwork(osNetwork)
 }
 
-// Get network by networkName
-func (os *Client) GetNetwork(networkName string) (*drivertypes.Network, error) {
+// GetNetworkByName gets network by networkName
+func (os *Client) GetNetworkByName(networkName string) (*drivertypes.Network, error) {
 	osNetwork, err := os.getOpenStackNetworkByName(networkName)
 	if err != nil {
 		glog.Warningf("try to fetch openstack network by name: %v but failed: %v", networkName, err)
@@ -495,7 +500,7 @@ func (os *Client) ToProviderStatus(status string) string {
 	}
 }
 
-// Create network
+// CreateNetwork creates network.
 func (os *Client) CreateNetwork(network *drivertypes.Network) error {
 	if len(network.Subnets) == 0 {
 		return errors.New("Subnets is null")
@@ -573,7 +578,7 @@ func (os *Client) CreateNetwork(network *drivertypes.Network) error {
 	return nil
 }
 
-// Update network
+// UpdateNetwork updates network.
 func (os *Client) UpdateNetwork(network *drivertypes.Network) error {
 	// TODO: update network subnets
 	return nil
@@ -601,7 +606,7 @@ func (os *Client) getRouterByName(name string) (*routers.Router, error) {
 	return result, nil
 }
 
-// Delete network by networkName
+// DeleteNetwork deletes network by networkName.
 func (os *Client) DeleteNetwork(networkName string) error {
 	osNetwork, err := os.getOpenStackNetworkByName(networkName)
 	if err != nil {
@@ -681,8 +686,8 @@ func (os *Client) DeleteNetwork(networkName string) error {
 	return nil
 }
 
-// Check the tenant id exist
-func (os *Client) CheckTenantID(tenantID string) (bool, error) {
+// CheckTenantByID checks tenant exist or not by tenantID.
+func (os *Client) CheckTenantByID(tenantID string) (bool, error) {
 	opts := tenants.ListOpts{}
 	pager := tenants.List(os.Identity, &opts)
 
@@ -710,6 +715,7 @@ func (os *Client) CheckTenantID(tenantID string) (bool, error) {
 	return found, err
 }
 
+// GetPort gets port by portName.
 func (os *Client) GetPort(name string) (*ports.Port, error) {
 	opts := ports.ListOpts{Name: name}
 	pager := ports.List(os.Network, opts)
@@ -831,7 +837,7 @@ func (os *Client) ensureSecurityGroup(tenantID string) (string, error) {
 	return securitygroup.ID, nil
 }
 
-// Create an port
+// CreatePort creates port by neworkID, tenantID and portName.
 func (os *Client) CreatePort(networkID, tenantID, portName string) (*portsbinding.Port, error) {
 	securitygroup, err := os.ensureSecurityGroup(tenantID)
 	if err != nil {
@@ -860,7 +866,7 @@ func (os *Client) CreatePort(networkID, tenantID, portName string) (*portsbindin
 	return port, nil
 }
 
-// List all ports in the network
+// ListPorts lists ports by networkID and deviceOwner.
 func (os *Client) ListPorts(networkID, deviceOwner string) ([]ports.Port, error) {
 	var results []ports.Port
 	opts := ports.ListOpts{

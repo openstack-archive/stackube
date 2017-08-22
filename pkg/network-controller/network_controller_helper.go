@@ -82,8 +82,8 @@ func (c *NetworkController) addNetworkToDriver(kubeNetwork *crv1.Network) error 
 
 	glog.V(4).Infof("[NetworkController]: adding network %s", driverNetwork.Name)
 
-	// Check if tenant id exist
-	check, err := c.driver.CheckTenantID(driverNetwork.TenantID)
+	// Check if tenant exist or not by tenantID.
+	check, err := c.driver.CheckTenantByID(driverNetwork.TenantID)
 	if err != nil {
 		glog.Errorf("[NetworkController]: check tenantID failed: %v", err)
 		return err
@@ -107,7 +107,7 @@ func (c *NetworkController) addNetworkToDriver(kubeNetwork *crv1.Network) error 
 			newNetworkStatus = crv1.NetworkFailed
 		} else {
 			// Check if provider network has already created
-			_, err := c.driver.GetNetwork(networkName)
+			_, err := c.driver.GetNetworkByName(networkName)
 			if err == nil {
 				glog.Infof("[NetworkController]: network %s has already created", networkName)
 			} else if err.Error() == util.ErrNotFound.Error() {

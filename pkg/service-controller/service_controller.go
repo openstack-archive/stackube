@@ -332,7 +332,7 @@ func (s *ServiceController) createLoadBalancer(service *v1.Service) (*v1.LoadBal
 
 	// Only support one network and network's name is same with namespace.
 	networkName := util.BuildNetworkName(service.Namespace, service.Namespace)
-	network, err := s.osClient.GetNetwork(networkName)
+	network, err := s.osClient.GetNetworkByName(networkName)
 	if err != nil {
 		glog.Errorf("Get network by name %q failed: %v", networkName, err)
 		return nil, err

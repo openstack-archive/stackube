@@ -75,7 +75,7 @@ func (os *OpenStack) getNetworkIDByNamespace(namespace string) (string, error) {
 	// Only support one network and network's name is same with namespace.
 	// TODO: make it general after multi-network is supported.
 	networkName := util.BuildNetworkName(namespace, namespace)
-	network, err := os.Client.GetNetwork(networkName)
+	network, err := os.Client.GetNetworkByName(networkName)
 	if err != nil {
 		glog.Errorf("Get network by name %q failed: %v", networkName, err)
 		return "", err

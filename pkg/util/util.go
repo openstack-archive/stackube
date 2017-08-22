@@ -21,6 +21,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"fmt"
 	apiv1 "k8s.io/api/core/v1"
 )
 
@@ -56,6 +57,10 @@ func BuildPortName(namespace, podName string) string {
 		namespace = SystemTenant
 	}
 	return namePrefix + "-" + namespace + "-" + podName
+}
+
+func BuildFullPodName(namespace, name string) string {
+	return fmt.Sprintf("%s-%s", namespace, name)
 }
 
 func IsSystemNamespace(ns string) bool {

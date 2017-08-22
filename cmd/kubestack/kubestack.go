@@ -145,7 +145,7 @@ func initOpenstack(stdinData []byte) (OpenStack, string, error) {
 }
 
 func cmdAdd(args *skel.CmdArgs) error {
-	os, cniVersion, err := initOpenstack(args.StdinData)
+	osClient, cniVersion, err := initOpenstack(args.StdinData)
 	if err != nil {
 		glog.Errorf("Init OpenStack failed: %v", err)
 		return err
@@ -159,14 +159,14 @@ func cmdAdd(args *skel.CmdArgs) error {
 	}
 
 	// Get tenantID
-	tenantID, err := os.Client.GetTenantIDFromName(podNamespace)
+	tenantID, err := osClient.Client.GetTenantIDFromName(podNamespace)
 	if err != nil {
 		glog.Errorf("Get tenantID failed: %v", err)
 		return err
 	}
 
 	// Get networkID
-	networkID, err := os.getNetworkIDByNamespace(podNamespace)
+	networkID, err := osClient.getNetworkIDByNamespace(podNamespace)
 	if err != nil {
 		glog.Errorf("Get networkID failed: %v", err)
 		return err
@@ -174,12 +174,13 @@ func cmdAdd(args *skel.CmdArgs) error {
 
 	// Build port name
 	portName := util.BuildPortName(podNamespace, podName)
+	podFullName := util.BuildFullPodName(podNamespace, podName)
 
 	// Get port from openstack.
-	port, err := os.Client.GetPort(portName)
+	port, err := osClient.Client.GetPort(portName)
 	if err == util.ErrNotFound || port == nil {
 		// Port not found, create a new one.
-		portWithBinding, err := os.Client.CreatePort(networkID, tenantID, portName)
+		portWithBinding, err := osClient.Client.CreatePort(networkID, tenantID, portName)
 		if err != nil {
 			glog.Errorf("CreatePort failed: %v", err)
 			return err
@@ -189,14 +190,18 @@ func cmdAdd(args *skel.CmdArgs) error {
 		glog.Errorf("GetPort failed: %v", err)
 		return err
 	}
+	defer func() {
+		if err != nil {
+			if osClient.Client.DeletePortByID(port.ID) != nil {
+				glog.Warningf("Delete port %s failed", port.ID)
+			}
+		}
+	}()
 
 	deviceOwner := fmt.Sprintf("compute:%s", getHostName())
 	if port.DeviceOwner != deviceOwner {
-		err := os.Client.UpdatePortsBinding(port.ID, deviceOwner)
+		err := osClient.Client.UpdatePortsBinding(port.ID, deviceOwner)
 		if err != nil {
-			if os.Client.DeletePortByID(port.ID) != nil {
-				glog.Warningf("Delete port %s failed", port.ID)
-			}
 			glog.Errorf("Update port %s failed: %v", portName, err)
 			return err
 		}
@@ -204,12 +209,9 @@ func cmdAdd(args *skel.CmdArgs) error {
 	glog.V(4).Infof("Pod %s's port is %v", podName, port)
 
 	// Get subnet and gateway
-	subnet, err := os.Client.GetProviderSubnet(port.FixedIPs[0].SubnetID)
+	subnet, err := osClient.Client.GetProviderSubnet(port.FixedIPs[0].SubnetID)
 	if err != nil {
 		glog.Errorf("Get info of subnet %s failed: %v", port.FixedIPs[0].SubnetID, err)
-		if os.Client.DeletePortByID(port.ID) != nil {
-			glog.Warningf("Delete port %s failed", port.ID)
-		}
 		return err
 	}
 
@@ -228,21 +230,28 @@ func cmdAdd(args *skel.CmdArgs) error {
 		// container runtime has already made the symlink for netns.
 		netnsName = path.Base(netns.Path())
 	} else {
-		netnsName = podName
+		netnsName = podFullName
 		destPath := filepath.Join(netnsBasePath, netnsName)
 		if err := util.NetnsSymlink(netns.Path(), destPath); err != nil {
 			return fmt.Errorf("error of symlink %q: %v", destPath, err)
 		}
+
+		defer func() {
+			if err != nil {
+				if _, err := os.Stat(destPath); !os.IsNotExist(err) {
+					if err = os.Remove(destPath); err != nil && !os.IsNotExist(err) {
+						glog.Warningf("Failed to remove netns symlink %q: %v", destPath, err)
+					}
+				}
+			}
+		}()
 	}
 
-	brInterface, conInterface, err := os.Plugin.SetupInterface(portName, args.ContainerID, port,
+	brInterface, conInterface, err := osClient.Plugin.SetupInterface(portName, args.ContainerID, port,
 		fmt.Sprintf("%s/%d", port.FixedIPs[0].IPAddress, prefixSize),
 		subnet.Gateway, args.IfName, netnsName)
 	if err != nil {
 		glog.Errorf("SetupInterface failed: %v", err)
-		if os.Client.DeletePortByID(port.ID) != nil {
-			glog.Warningf("Delete port %s failed", port.ID)
-		}
 		return err
 	}
 
@@ -288,6 +297,7 @@ func cmdDel(args *skel.CmdArgs) error {
 
 	// Build port name
 	portName := util.BuildPortName(podNamespace, podName)
+	podFullName := util.BuildFullPodName(podNamespace, podName)
 
 	// Get port from openstack
 	port, err := osClient.Client.GetPort(portName)
@@ -323,7 +333,7 @@ func cmdDel(args *skel.CmdArgs) error {
 	}
 	defer netns.Close()
 	if !strings.HasPrefix(netnsBasePath, netns.Path()) {
-		destPath := filepath.Join(netnsBasePath, podName)
+		destPath := filepath.Join(netnsBasePath, podFullName)
 		if _, err := os.Stat(destPath); !os.IsNotExist(err) {
 			if err = os.Remove(destPath); err != nil {
 				glog.Warningf("failed to remove %q: %v", destPath, err)

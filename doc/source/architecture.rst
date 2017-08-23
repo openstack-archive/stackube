@@ -12,6 +12,12 @@ fabric controller, to provision containers as the compute instance, along with o
 services (e.g. Cinder, Neutron). It supports multiple container runtime technologies, e.g. Docker,
 Hyper, and offers built-in soft/hard multi-tenancy (depending on the container runtime used).
 
+============
+Architecture
+============
+
+.. image:: ../images/StackubeArchitecture.png
+
 ===========
 Components
 ===========
@@ -37,4 +43,6 @@ Components
 * Stackube-controller: tenant and network manager.
 * Stackube-proxy: service discovery and load balancing, replacement of kube-proxy.
 * Kubestack: the CNI network plugin, which connects containers to Neutron network.
+
+
 

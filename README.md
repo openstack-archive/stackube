@@ -5,6 +5,10 @@ fabric controller, to provision containers as the compute instance, along with o
 services (e.g. Cinder, Neutron). It supports multiple container runtime technologies, e.g. Docker,
 Hyper, and offers built-in soft / hard multi-tenancy (depending on the container runtime used).
 
+# Stackube Authors
+
+Stackube is an open source project with an active development community. The project is initiated by HyperHQ, and involves contribution from ARM, China Mobile, etc.
+
 ## Architecture
 
 ![alt](doc/images/StackubeArchitecture.png)

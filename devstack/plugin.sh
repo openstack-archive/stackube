@@ -97,7 +97,7 @@ gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg
 EOF'
         sudo setenforce 0
         sudo sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/selinux/config
-        sudo yum install -y kubelet-1.7.3-1 kubeadm-1.7.3-1 kubectl-1.7.3-1
+        sudo yum install -y kubelet-1.7.4-0 kubeadm-1.7.4-0 kubectl-1.7.4-0
     elif is_ubuntu; then
         sudo apt-get update && sudo apt-get install -y apt-transport-https
         sudo curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
@@ -105,7 +105,7 @@ EOF'
 deb http://apt.kubernetes.io/ kubernetes-xenial main
 EOF'
         sudo apt-get update
-        sudo apt-get install -y kubelet=1.7.3-01 kubeadm=1.7.3-01 kubectl=1.7.3-01
+        sudo apt-get install -y kubelet=1.7.4-00 kubeadm=1.7.4-00 kubectl=1.7.4-00
     else
         exit_distro_not_supported
     fi

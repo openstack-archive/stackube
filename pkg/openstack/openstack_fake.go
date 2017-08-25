@@ -18,11 +18,10 @@ package openstack
 
 import (
 	"crypto/sha1"
-	"errors"
 	"fmt"
 	"io"
+	"sync"
 
-	crv1 "git.openstack.org/openstack/stackube/pkg/apis/v1"
 	crdClient "git.openstack.org/openstack/stackube/pkg/kubecrd"
 	drivertypes "git.openstack.org/openstack/stackube/pkg/openstack/types"
 	"git.openstack.org/openstack/stackube/pkg/util"
@@ -34,19 +33,27 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/subnets"
 )
 
-var ErrAlreadyExist = errors.New("AlreadyExist")
+// CalledDetail is the struct contains called function name and arguments.
+type CalledDetail struct {
+	// Name of the function called.
+	Name string
+	// Argument of the function called.
+	Argument []interface{}
+}
 
 // FakeOSClient is a simple fake openstack client, so that stackube
 // can be run for testing without requiring a real openstack setup.
 type FakeOSClient struct {
-	Tenants  map[string]*tenants.Tenant
-	Users    map[string]*users.User
-	Networks map[string]*drivertypes.Network
-	Subnets  map[string]*subnets.Subnet
-	Routers  map[string]*routers.Router
-	Ports    map[string][]ports.Port
-	// TODO(mozhuli): Add fakeCRDClient.
-	CRDClient         *crdClient.CRDClient
+	sync.Mutex
+	called            []CalledDetail
+	errors            map[string]error
+	Tenants           map[string]*tenants.Tenant
+	Users             map[string]*users.User
+	Networks          map[string]*drivertypes.Network
+	Subnets           map[string]*subnets.Subnet
+	Routers           map[string]*routers.Router
+	Ports             map[string][]ports.Port
+	CRDClient         crdClient.Interface
 	PluginName        string
 	IntegrationBridge string
 }
@@ -54,50 +61,116 @@ type FakeOSClient struct {
 var _ = Interface(&FakeOSClient{})
 
 // NewFake creates a new FakeOSClient.
-func NewFake() *FakeOSClient {
+func NewFake(crdClient crdClient.Interface) *FakeOSClient {
 	return &FakeOSClient{
+		errors:            make(map[string]error),
 		Tenants:           make(map[string]*tenants.Tenant),
 		Users:             make(map[string]*users.User),
 		Networks:          make(map[string]*drivertypes.Network),
 		Subnets:           make(map[string]*subnets.Subnet),
 		Routers:           make(map[string]*routers.Router),
 		Ports:             make(map[string][]ports.Port),
+		CRDClient:         crdClient,
 		PluginName:        "ovs",
 		IntegrationBridge: "bi-int",
 	}
 }
 
+func (f *FakeOSClient) getError(op string) error {
+	err, ok := f.errors[op]
+	if ok {
+		delete(f.errors, op)
+		return err
+	}
+	return nil
+}
+
+// InjectError inject error for call
+func (f *FakeOSClient) InjectError(fn string, err error) {
+	f.Lock()
+	defer f.Unlock()
+	f.errors[fn] = err
+}
+
+// InjectErrors inject errors for calls
+func (f *FakeOSClient) InjectErrors(errs map[string]error) {
+	f.Lock()
+	defer f.Unlock()
+	for fn, err := range errs {
+		f.errors[fn] = err
+	}
+}
+
+// ClearErrors clear errors for call
+func (f *FakeOSClient) ClearErrors() {
+	f.Lock()
+	defer f.Unlock()
+	f.errors = make(map[string]error)
+}
+
+func (f *FakeOSClient) appendCalled(name string, argument ...interface{}) {
+	call := CalledDetail{Name: name, Argument: argument}
+	f.called = append(f.called, call)
+}
+
+// GetCalledNames get names of call
+func (f *FakeOSClient) GetCalledNames() []string {
+	f.Lock()
+	defer f.Unlock()
+	names := []string{}
+	for _, detail := range f.called {
+		names = append(names, detail.Name)
+	}
+	return names
+}
+
+// GetCalledDetails get detail of each call.
+func (f *FakeOSClient) GetCalledDetails() []CalledDetail {
+	f.Lock()
+	defer f.Unlock()
+	// Copy the list and return.
+	return append([]CalledDetail{}, f.called...)
+}
+
 // SetTenant injects fake tenant.
-func (os *FakeOSClient) SetTenant(tenantName, tenantID string) {
+func (f *FakeOSClient) SetTenant(tenantName, tenantID string) {
+	f.Lock()
+	defer f.Unlock()
 	tenant := &tenants.Tenant{
 		Name: tenantName,
 		ID:   tenantID,
 	}
-	os.Tenants[tenantName] = tenant
+	f.Tenants[tenantName] = tenant
 }
 
 // SetUser injects fake user.
-func (os *FakeOSClient) SetUser(userName, userID, tenantID string) {
+func (f *FakeOSClient) SetUser(userName, userID, tenantID string) {
+	f.Lock()
+	defer f.Unlock()
 	user := &users.User{
 		Username: userName,
 		ID:       userID,
 		TenantID: tenantID,
 	}
-	os.Users[tenantID] = user
+	f.Users[tenantID] = user
 }
 
 // SetNetwork injects fake network.
-func (os *FakeOSClient) SetNetwork(networkName, networkID string) {
+func (f *FakeOSClient) SetNetwork(networkName, networkID string) {
+	f.Lock()
+	defer f.Unlock()
 	network := &drivertypes.Network{
 		Name: networkName,
 		Uid:  networkID,
 	}
-	os.Networks[networkName] = network
+	f.Networks[networkName] = network
 }
 
 // SetPort injects fake port.
-func (os *FakeOSClient) SetPort(networkID, deviceOwner, deviceID string) {
-	netPorts, ok := os.Ports[networkID]
+func (f *FakeOSClient) SetPort(networkID, deviceOwner, deviceID string) {
+	f.Lock()
+	defer f.Unlock()
+	netPorts, ok := f.Ports[networkID]
 	p := ports.Port{
 		NetworkID:   networkID,
 		DeviceOwner: deviceOwner,
@@ -106,10 +179,10 @@ func (os *FakeOSClient) SetPort(networkID, deviceOwner, deviceID string) {
 	if !ok {
 		var ps []ports.Port
 		ps = append(ps, p)
-		os.Ports[networkID] = ps
+		f.Ports[networkID] = ps
 	}
 	netPorts = append(netPorts, p)
-	os.Ports[networkID] = netPorts
+	f.Ports[networkID] = netPorts
 }
 
 func tenantIDHash(tenantName string) string {
@@ -146,84 +219,129 @@ func idHash(data ...string) string {
 	return fmt.Sprintf("%x", h.Sum(nil))[:16]
 }
 
-// CreateTenant creates tenant by tenantname.
-func (os *FakeOSClient) CreateTenant(tenantName string) (string, error) {
-	if t, ok := os.Tenants[tenantName]; ok {
+// CreateTenant is a test implementation of Interface.CreateTenant.
+func (f *FakeOSClient) CreateTenant(tenantName string) (string, error) {
+	f.Lock()
+	defer f.Unlock()
+	f.appendCalled("CreateTenant", tenantName)
+	if err := f.getError("CreateTenant"); err != nil {
+		return "", err
+	}
+
+	if t, ok := f.Tenants[tenantName]; ok {
 		return t.ID, nil
 	}
 	tenant := &tenants.Tenant{
 		Name: tenantName,
 		ID:   tenantIDHash(tenantName),
 	}
-	os.Tenants[tenantName] = tenant
+	f.Tenants[tenantName] = tenant
 	return tenant.ID, nil
 }
 
-// DeleteTenant deletes tenant by tenantName.
-func (os *FakeOSClient) DeleteTenant(tenantName string) error {
-	delete(os.Tenants, tenantName)
+// DeleteTenant is a test implementation of Interface.DeleteTenant.
+func (f *FakeOSClient) DeleteTenant(tenantName string) error {
+	f.Lock()
+	defer f.Unlock()
+	f.appendCalled("DeleteTenant", tenantName)
+	if err := f.getError("DeleteTenant"); err != nil {
+		return err
+	}
+
+	delete(f.Tenants, tenantName)
 	return nil
 }
 
-// GetTenantIDFromName gets tenantID by tenantName.
-func (os *FakeOSClient) GetTenantIDFromName(tenantName string) (string, error) {
+// GetTenantIDFromName is a test implementation of Interface.GetTenantIDFromName.
+func (f *FakeOSClient) GetTenantIDFromName(tenantName string) (string, error) {
+	f.Lock()
+	defer f.Unlock()
+	f.appendCalled("GetTenantIDFromName", tenantName)
+	if err := f.getError("GetTenantIDFromName"); err != nil {
+		return "", err
+	}
+
 	if util.IsSystemNamespace(tenantName) {
 		tenantName = util.SystemTenant
 	}
 
 	// If tenantID is specified, return it directly
-	var (
-		tenant *crv1.Tenant
-		err    error
-	)
-	// TODO(mozhuli): use fakeCRDClient.
-	if tenant, err = os.CRDClient.GetTenant(tenantName); err != nil {
+	tenant, err := f.CRDClient.GetTenant(tenantName)
+	if err != nil {
 		return "", err
 	}
 	if tenant.Spec.TenantID != "" {
 		return tenant.Spec.TenantID, nil
 	}
 
-	t, ok := os.Tenants[tenantName]
+	t, ok := f.Tenants[tenantName]
 	if !ok {
-		return "", nil
+		return "", fmt.Errorf("Tenant %s not exist", tenantName)
 	}
 
 	return t.ID, nil
 }
 
-// CheckTenantByID checks tenant exist or not by tenantID.
-func (os *FakeOSClient) CheckTenantByID(tenantID string) (bool, error) {
-	for _, tenent := range os.Tenants {
+// CheckTenantByID is a test implementation of Interface.CheckTenantByID.
+func (f *FakeOSClient) CheckTenantByID(tenantID string) (bool, error) {
+	f.Lock()
+	defer f.Unlock()
+	f.appendCalled("CheckTenantByID", tenantID)
+	if err := f.getError("CheckTenantByID"); err != nil {
+		return false, err
+	}
+
+	for _, tenent := range f.Tenants {
 		if tenent.ID == tenantID {
 			return true, nil
 		}
 	}
-	return false, ErrNotFound
+	return false, fmt.Errorf("Tenant %s not exist", tenantID)
 }
 
-// CreateUser creates user with username, password in the tenant.
-func (os *FakeOSClient) CreateUser(username, password, tenantID string) error {
+// CreateUser is a test implementation of Interface.CreateUser.
+func (f *FakeOSClient) CreateUser(username, password, tenantID string) error {
+	f.Lock()
+	defer f.Unlock()
+	f.appendCalled("CreateUser", username, password, tenantID)
+	if err := f.getError("CreateUser"); err != nil {
+		return err
+	}
+
 	user := &users.User{
 		Name:     username,
 		TenantID: tenantID,
 		ID:       userIDHash(username, tenantID),
 	}
-	os.Users[tenantID] = user
+	f.Users[tenantID] = user
 	return nil
 }
 
-// DeleteAllUsersOnTenant deletes all users on the tenant.
-func (os *FakeOSClient) DeleteAllUsersOnTenant(tenantName string) error {
-	tenant := os.Tenants[tenantName]
+// DeleteAllUsersOnTenant is a test implementation of Interface.DeleteAllUsersOnTenant.
+func (f *FakeOSClient) DeleteAllUsersOnTenant(tenantName string) error {
+	f.Lock()
+	defer f.Unlock()
+	f.appendCalled("DeleteAllUsersOnTenant", tenantName)
+	if err := f.getError("DeleteAllUsersOnTenant"); err != nil {
+		return err
+	}
 
-	delete(os.Users, tenant.ID)
+	tenant := f.Tenants[tenantName]
+
+	delete(f.Users, tenant.ID)
 	return nil
 }
 
-func (os *FakeOSClient) createNetwork(networkName, tenantID string) error {
-	if _, ok := os.Networks[networkName]; ok {
-		return ErrAlreadyExist
+func (f *FakeOSClient) createNetwork(networkName, tenantID string) error {
+	f.Lock()
+	defer f.Unlock()
+	f.appendCalled("createNetwork", networkName, tenantID)
+	if err := f.getError("createNetwork"); err != nil {
+		return err
+	}
+
+	if _, ok := f.Networks[networkName]; ok {
+		return fmt.Errorf("Network %s already exist", networkName)
 	}
 
 	network := &drivertypes.Network{
@@ -231,18 +349,32 @@ func (os *FakeOSClient) createNetwork(networkName, tenantID string) error {
 		Uid:      networkIDHash(networkName),
 		TenantID: tenantID,
 	}
-	os.Networks[networkName] = network
+	f.Networks[networkName] = network
 	return nil
 }
 
-func (os *FakeOSClient) deleteNetwork(networkName string) error {
-	delete(os.Networks, networkName)
+func (f *FakeOSClient) deleteNetwork(networkName string) error {
+	f.Lock()
+	defer f.Unlock()
+	f.appendCalled("deleteNetwork", networkName)
+	if err := f.getError("deleteNetwork"); err != nil {
+		return err
+	}
+
+	delete(f.Networks, networkName)
 	return nil
 }
 
-func (os *FakeOSClient) createRouter(routerName, tenantID string) error {
-	if _, ok := os.Routers[routerName]; ok {
-		return ErrAlreadyExist
+func (f *FakeOSClient) createRouter(routerName, tenantID string) error {
+	f.Lock()
+	defer f.Unlock()
+	f.appendCalled("createRouter", routerName, tenantID)
+	if err := f.getError("createRouter"); err != nil {
+		return err
+	}
+
+	if _, ok := f.Routers[routerName]; ok {
+		return fmt.Errorf("Router %s already exist", routerName)
 	}
 
 	router := &routers.Router{
@@ -250,18 +382,32 @@ func (os *FakeOSClient) createRouter(routerName, tenantID string) error {
 		TenantID: tenantID,
 		ID:       routerIDHash(routerName),
 	}
-	os.Routers[routerName] = router
+	f.Routers[routerName] = router
 	return nil
 }
 
-func (os *FakeOSClient) deleteRouter(routerName string) error {
-	delete(os.Routers, routerName)
+func (f *FakeOSClient) deleteRouter(routerName string) error {
+	f.Lock()
+	defer f.Unlock()
+	f.appendCalled("deleteRouter", routerName)
+	if err := f.getError("deleteRouter"); err != nil {
+		return err
+	}
+
+	delete(f.Routers, routerName)
 	return nil
 }
 
-func (os *FakeOSClient) createSubnet(subnetName, networkID, tenantID string) error {
-	if _, ok := os.Subnets[subnetName]; ok {
-		return ErrAlreadyExist
+func (f *FakeOSClient) createSubnet(subnetName, networkID, tenantID string) error {
+	f.Lock()
+	defer f.Unlock()
+	f.appendCalled("createSubnet", subnetName, networkID, tenantID)
+	if err := f.getError("createSubnet"); err != nil {
+		return err
+	}
+
+	if _, ok := f.Subnets[subnetName]; ok {
+		return fmt.Errorf("Subnet %s already exist", subnetName)
 	}
 
 	subnet := &subnets.Subnet{
@@ -270,77 +416,98 @@ func (os *FakeOSClient) createSubnet(subnetName, networkID, tenantID string) err
 		NetworkID: networkID,
 		ID:        subnetIDHash(subnetName),
 	}
-	os.Subnets[subnetName] = subnet
+	f.Subnets[subnetName] = subnet
 	return nil
 }
 
-// CreateNetwork creates network.
-// TODO(mozhuli): make it more general.
-func (os *FakeOSClient) CreateNetwork(network *drivertypes.Network) error {
+// CreateNetwork is a test implementation of Interface.CreateNetwork.
+func (f *FakeOSClient) CreateNetwork(network *drivertypes.Network) error {
+	f.Lock()
+	defer f.Unlock()
+	f.appendCalled("CreateNetwork", network)
+	if err := f.getError("CreateNetwork"); err != nil {
+		return err
+	}
+
 	if len(network.Subnets) == 0 {
-		return errors.New("Subnets is null")
+		return fmt.Errorf("Subnets is null")
 	}
 
 	// create network
-	err := os.createNetwork(network.Name, network.TenantID)
+	err := f.createNetwork(network.Name, network.TenantID)
 	if err != nil {
-		return errors.New("Create network failed")
+		return err
 	}
 	// create router, and use network name as router name for convenience.
-	err = os.createRouter(network.Name, network.TenantID)
+	err = f.createRouter(network.Name, network.TenantID)
 	if err != nil {
-		os.deleteNetwork(network.Name)
-		return errors.New("Create router failed")
+		f.deleteNetwork(network.Name)
+		return err
 	}
 	// create subnets and connect them to router
-	err = os.createSubnet(network.Subnets[0].Name, network.Uid, network.TenantID)
+	err = f.createSubnet(network.Subnets[0].Name, network.Uid, network.TenantID)
 	if err != nil {
-		os.deleteRouter(network.Name)
-		os.deleteNetwork(network.Name)
-		return errors.New("Create subnet failed")
+		f.deleteRouter(network.Name)
+		f.deleteNetwork(network.Name)
+		return err
 	}
 	return nil
 }
 
 // GetNetworkByID gets network by networkID.
-func (os *FakeOSClient) GetNetworkByID(networkID string) (*drivertypes.Network, error) {
+// CreateTenant is a test implementation of Interface.CreateTenant.
+func (f *FakeOSClient) GetNetworkByID(networkID string) (*drivertypes.Network, error) {
 	return nil, nil
 }
 
-// GetNetworkByName get network by networkName
-func (os *FakeOSClient) GetNetworkByName(networkName string) (*drivertypes.Network, error) {
-	network, ok := os.Networks[networkName]
+// GetNetworkByName is a test implementation of Interface.GetNetworkByName.
+func (f *FakeOSClient) GetNetworkByName(networkName string) (*drivertypes.Network, error) {
+	f.Lock()
+	defer f.Unlock()
+	f.appendCalled("GetNetworkByName", networkName)
+	if err := f.getError("GetNetworkByName"); err != nil {
+		return nil, err
+	}
+
+	network, ok := f.Networks[networkName]
 	if !ok {
-		return nil, ErrNotFound
+		return nil, fmt.Errorf("Network %s not exist", networkName)
 	}
 
 	return network, nil
 }
 
-// DeleteNetwork deletes network by networkName.
-func (os *FakeOSClient) DeleteNetwork(networkName string) error {
+// DeleteNetwork is a test implementation of Interface.DeleteNetwork.
+func (f *FakeOSClient) DeleteNetwork(networkName string) error {
 	return nil
 }
 
-// GetProviderSubnet gets provider subnet by id
-func (os *FakeOSClient) GetProviderSubnet(osSubnetID string) (*drivertypes.Subnet, error) {
+// GetProviderSubnet is a test implementation of Interface.GetProviderSubnet.
+func (f *FakeOSClient) GetProviderSubnet(osSubnetID string) (*drivertypes.Subnet, error) {
 	return nil, nil
 }
 
-// CreatePort creates port by neworkID, tenantID and portName.
-func (os *FakeOSClient) CreatePort(networkID, tenantID, portName string) (*portsbinding.Port, error) {
+// CreatePort is a test implementation of Interface.CreatePort.
+func (f *FakeOSClient) CreatePort(networkID, tenantID, portName string) (*portsbinding.Port, error) {
 	return nil, nil
 }
 
-// GetPort gets port by portName.
-func (os *FakeOSClient) GetPort(name string) (*ports.Port, error) {
+// GetPort is a test implementation of Interface.GetPort.
+func (f *FakeOSClient) GetPort(name string) (*ports.Port, error) {
 	return nil, nil
 }
 
-// ListPorts list all ports which have the deviceOwner in the network.
-func (os *FakeOSClient) ListPorts(networkID, deviceOwner string) ([]ports.Port, error) {
+// ListPorts is a test implementation of Interface.ListPorts.
+func (f *FakeOSClient) ListPorts(networkID, deviceOwner string) ([]ports.Port, error) {
+	f.Lock()
+	defer f.Unlock()
+	f.appendCalled("ListPorts", networkID, deviceOwner)
+	if err := f.getError("ListPorts"); err != nil {
+		return nil, err
+	}
+
 	var results []ports.Port
-	portList, ok := os.Ports[networkID]
+	portList, ok := f.Ports[networkID]
 	if !ok {
 		return results, nil
 	}
@@ -353,48 +520,47 @@ func (os *FakeOSClient) ListPorts(networkID, deviceOwner string) ([]ports.Port, 
 	return results, nil
 }
 
-// DeletePortByName deletes port by portName.
-func (os *FakeOSClient) DeletePortByName(portName string) error {
+// DeletePortByName is a test implementation of Interface.DeletePortByName.
+func (f *FakeOSClient) DeletePortByName(portName string) error {
 	return nil
 }
 
-// DeletePortByID deletes port by portID.
-func (os *FakeOSClient) DeletePortByID(portID string) error {
+// DeletePortByID is a test implementation of Interface.DeletePortByID.
+func (f *FakeOSClient) DeletePortByID(portID string) error {
 	return nil
 }
 
-// UpdatePortsBinding updates port binding.
-func (os *FakeOSClient) UpdatePortsBinding(portID, deviceOwner string) error {
+// UpdatePortsBinding is a test implementation of Interface.UpdatePortsBinding.
+func (f *FakeOSClient) UpdatePortsBinding(portID, deviceOwner string) error {
 	return nil
 }
 
-// LoadBalancerExist returns whether a load balancer has already been exist.
-func (os *FakeOSClient) LoadBalancerExist(name string) (bool, error) {
+// LoadBalancerExist is a test implementation of Interface.LoadBalancerExist.
+func (f *FakeOSClient) LoadBalancerExist(name string) (bool, error) {
 	return true, nil
 }
 
-// EnsureLoadBalancer ensures a load balancer is created.
-func (os *FakeOSClient) EnsureLoadBalancer(lb *LoadBalancer) (*LoadBalancerStatus, error) {
+// EnsureLoadBalancer is a test implementation of Interface.EnsureLoadBalancer.
+func (f *FakeOSClient) EnsureLoadBalancer(lb *LoadBalancer) (*LoadBalancerStatus, error) {
 	return nil, nil
 }
 
-// EnsureLoadBalancerDeleted ensures a load balancer is deleted.
-func (os *FakeOSClient) EnsureLoadBalancerDeleted(name string) error {
+// EnsureLoadBalancerDeleted is a test implementation of Interface.EnsureLoadBalancerDeleted.
+func (f *FakeOSClient) EnsureLoadBalancerDeleted(name string) error {
 	return nil
 }
 
-// GetCRDClient returns the CRDClient.
-// TODO(mozhuli): use fakeCRDClient.
-func (os *FakeOSClient) GetCRDClient() *crdClient.CRDClient {
-	return os.CRDClient
+// GetCRDClient is a test implementation of Interface.GetCRDClient.
+func (f *FakeOSClient) GetCRDClient() crdClient.Interface {
+	return f.CRDClient
 }
 
-// GetPluginName returns the plugin name.
-func (os *FakeOSClient) GetPluginName() string {
-	return os.PluginName
+// GetPluginName is a test implementation of Interface.GetPluginName.
+func (f *FakeOSClient) GetPluginName() string {
+	return f.PluginName
 }
 
-// GetIntegrationBridge returns the integration bridge name.
-func (os *FakeOSClient) GetIntegrationBridge() string {
-	return os.IntegrationBridge
+// GetIntegrationBridge is a test implementation of Interface.GetIntegrationBridge.
+func (f *FakeOSClient) GetIntegrationBridge() string {
+	return f.IntegrationBridge
 }

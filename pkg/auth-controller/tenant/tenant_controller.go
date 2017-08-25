@@ -34,10 +34,10 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
-// TenantController manages life cycle of Tenant.
+// TenantController manages the life cycle of Tenant.
 type TenantController struct {
 	k8sClient       *kubernetes.Clientset
-	kubeCRDClient   *crdClient.CRDClient
+	kubeCRDClient   crdClient.Interface
 	openstackClient openstack.Interface
 }
 
@@ -64,16 +64,12 @@ func NewTenantController(kubeClient *kubernetes.Clientset,
 	return c, nil
 }
 
-func (c *TenantController) GetKubeCRDClient() *crdClient.CRDClient {
-	return c.kubeCRDClient
-}
-
 // Run the controller.
 func (c *TenantController) Run(stopCh <-chan struct{}) error {
 	defer utilruntime.HandleCrash()
 
 	source := cache.NewListWatchFromClient(
-		c.kubeCRDClient.Client,
+		c.kubeCRDClient.Client(),
 		crv1.TenantResourcePlural,
 		apiv1.NamespaceAll,
 		fields.Everything())
@@ -97,7 +93,7 @@ func (c *TenantController) onAdd(obj interface{}) {
 	tenant := obj.(*crv1.Tenant)
 	glog.V(3).Infof("Tenant controller received new object %#v\n", tenant)
 
-	copyObj, err := c.kubeCRDClient.Scheme.Copy(tenant)
+	copyObj, err := c.kubeCRDClient.Scheme().Copy(tenant)
 	if err != nil {
 		glog.Errorf("ERROR creating a deep copy of tenant object: %#v\n", err)
 		return
@@ -140,7 +136,7 @@ func (c *TenantController) onDelete(obj interface{}) {
 		glog.Errorf("failed to delete network for tenant: %v", tenantName)
 	}
 
-	//Delete namespace
+	// Delete namespace
 	err = c.deleteNamespace(tenantName)
 	if err != nil {
 		glog.Errorf("Delete namespace %s failed: %v", tenantName, err)

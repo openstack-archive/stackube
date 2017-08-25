@@ -106,13 +106,14 @@ type Interface interface {
 	// EnsureLoadBalancerDeleted ensures a load balancer is deleted.
 	EnsureLoadBalancerDeleted(name string) error
 	// GetCRDClient returns the CRDClient.
-	GetCRDClient() *crdClient.CRDClient
+	GetCRDClient() crdClient.Interface
 	// GetPluginName returns the plugin name.
 	GetPluginName() string
 	// GetIntegrationBridge returns the integration bridge name.
 	GetIntegrationBridge() string
 }
 
+// Client implements the openstack client Interface.
 type Client struct {
 	Identity          *gophercloud.ServiceClient
 	Provider          *gophercloud.ProviderClient
@@ -121,7 +122,7 @@ type Client struct {
 	ExtNetID          string
 	PluginName        string
 	IntegrationBridge string
-	CRDClient         *crdClient.CRDClient
+	CRDClient         crdClient.Interface
 }
 
 type PluginOpts struct {
@@ -129,6 +130,7 @@ type PluginOpts struct {
 	IntegrationBridge string `gcfg:"integration-bridge"`
 }
 
+// Config used to configure the openstack client.
 type Config struct {
 	Global struct {
 		AuthUrl    string `gcfg:"auth-url"`
@@ -151,6 +153,7 @@ func toAuthOptions(cfg Config) gophercloud.AuthOptions {
 	}
 }
 
+// NewClient returns a new openstack client.
 func NewClient(config string, kubeConfig string) (Interface, error) {
 	var opts gophercloud.AuthOptions
 	cfg, err := readConfig(config)
@@ -221,7 +224,7 @@ func readConfig(config string) (Config, error) {
 }
 
 // GetCRDClient returns the CRDClient.
-func (os *Client) GetCRDClient() *crdClient.CRDClient {
+func (os *Client) GetCRDClient() crdClient.Interface {
 	return os.CRDClient
 }
 
@@ -466,6 +469,7 @@ func (os *Client) GetNetworkByName(networkName string) (*drivertypes.Network, er
 	return os.OSNetworktoProviderNetwork(osNetwork)
 }
 
+// OSNetworktoProviderNetwork transfers networks.Network to drivertypes.Network.
 func (os *Client) OSNetworktoProviderNetwork(osNetwork *networks.Network) (*drivertypes.Network, error) {
 	var providerNetwork drivertypes.Network
 	var providerSubnets []*drivertypes.Subnet
@@ -487,6 +491,7 @@ func (os *Client) OSNetworktoProviderNetwork(osNetwork *networks.Network) (*driv
 	return &providerNetwork, nil
 }
 
+// ToProviderStatus transfers networks.Network's status to drivertypes.Network's status.
 func (os *Client) ToProviderStatus(status string) string {
 	switch status {
 	case "ACTIVE":

@@ -48,18 +48,15 @@ const (
 	defaultSideCarImage = "stackube/k8s-dns-sidecar-amd64:1.14.4"
 )
 
-// Watcher is an network of watching on resource create/update/delete events
+// NetworkController manages the life cycle of Network.
 type NetworkController struct {
 	k8sclient       *kubernetes.Clientset
-	kubeCRDClient   *kubecrd.CRDClient
+	kubeCRDClient   kubecrd.Interface
 	driver          openstack.Interface
 	networkInformer cache.Controller
 }
 
-func (c *NetworkController) GetKubeCRDClient() *kubecrd.CRDClient {
-	return c.kubeCRDClient
-}
-
+// Run the network controller.
 func (c *NetworkController) Run(stopCh <-chan struct{}) error {
 	defer utilruntime.HandleCrash()
 
@@ -69,6 +66,7 @@ func (c *NetworkController) Run(stopCh <-chan struct{}) error {
 	return nil
 }
 
+// NewNetworkController creates a new NetworkController.
 func NewNetworkController(kubeClient *kubernetes.Clientset, osClient openstack.Interface, kubeExtClient *apiextensionsclient.Clientset) (*NetworkController, error) {
 	// initialize CRD if it does not exist
 	_, err := kubecrd.CreateNetworkCRD(kubeExtClient)
@@ -77,7 +75,7 @@ func NewNetworkController(kubeClient *kubernetes.Clientset, osClient openstack.I
 	}
 
 	source := cache.NewListWatchFromClient(
-		osClient.GetCRDClient().Client,
+		osClient.GetCRDClient().Client(),
 		crv1.NetworkResourcePlural,
 		apiv1.NamespaceAll,
 		fields.Everything())
@@ -108,7 +106,7 @@ func (c *NetworkController) onAdd(obj interface{}) {
 	// NEVER modify objects from the store. It's a read-only, local cache.
 	// You can use networkScheme.Copy() to make a deep copy of original object and modify this copy
 	// Or create a copy manually for better performance
-	copyObj, err := c.GetKubeCRDClient().Scheme.Copy(network)
+	copyObj, err := c.kubeCRDClient.Scheme().Copy(network)
 	if err != nil {
 		glog.Errorf("ERROR creating a deep copy of network object: %v\n", err)
 		return

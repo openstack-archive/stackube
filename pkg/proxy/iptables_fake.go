@@ -19,6 +19,7 @@ package proxy
 import (
 	"fmt"
 	"strings"
+	"sync"
 )
 
 const (
@@ -35,6 +36,7 @@ type Rule map[string]string
 
 // FakeIPTables have noop implementation of fake iptables function.
 type FakeIPTables struct {
+	sync.Mutex
 	namespace string
 	NSLines   map[string][]byte
 }
@@ -55,6 +57,8 @@ func (f *FakeIPTables) ensureRule(op, chain string, args []string) error {
 }
 
 func (f *FakeIPTables) restoreAll(data []byte) error {
+	f.Lock()
+	defer f.Unlock()
 	d := make([]byte, len(data))
 	copy(d, data)
 	f.NSLines[f.namespace] = d

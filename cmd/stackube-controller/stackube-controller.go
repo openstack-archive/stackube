@@ -45,6 +45,7 @@ var (
 		"path to stackube config file")
 	userCIDR    = pflag.String("user-cidr", "10.244.0.0/16", "user Pod network CIDR")
 	userGateway = pflag.String("user-gateway", "10.244.0.1", "user Pod network gateway")
+	version     = pflag.Bool("version", false, "Display version")
 )
 
 func startControllers(kubeClient *kubernetes.Clientset,
@@ -129,7 +130,7 @@ func initClients() (*kubernetes.Clientset, openstack.Interface, *extclientset.Cl
 }
 
 func main() {
-	util.InitFlags()
+	util.InitFlags(version)
 	util.InitLogs()
 	defer util.FlushLogs()
 

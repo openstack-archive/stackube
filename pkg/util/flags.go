@@ -18,11 +18,16 @@ package util
 
 import (
 	goflag "flag"
+	"fmt"
 	"os"
 	"strings"
 
 	"github.com/golang/glog"
 	"github.com/spf13/pflag"
+)
+
+var (
+	VERSION = "0.1"
 )
 
 // WordSepNormalizeFunc changes all flags that contain "_" separators
@@ -45,7 +50,7 @@ func WarnWordSepNormalizeFunc(f *pflag.FlagSet, name string) pflag.NormalizedNam
 }
 
 // InitFlags normalizes and parses the command line flags
-func InitFlags() {
+func InitFlags(version *bool) {
 	pflag.CommandLine.SetNormalizeFunc(WordSepNormalizeFunc)
 	pflag.CommandLine.AddGoFlagSet(goflag.CommandLine)
 
@@ -54,5 +59,9 @@ func InitFlags() {
 	path := pflag.Lookup("log-dir").Value.String()
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		os.MkdirAll(path, 0755)
+	}
+	if *version {
+		fmt.Println(VERSION)
+		os.Exit(0)
 	}
 }

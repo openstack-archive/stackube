@@ -39,14 +39,13 @@ var ErrAlreadyExist = errors.New("AlreadyExist")
 // FakeOSClient is a simple fake openstack client, so that stackube
 // can be run for testing without requiring a real openstack setup.
 type FakeOSClient struct {
-	Tenants  map[string]*tenants.Tenant
-	Users    map[string]*users.User
-	Networks map[string]*drivertypes.Network
-	Subnets  map[string]*subnets.Subnet
-	Routers  map[string]*routers.Router
-	Ports    map[string][]ports.Port
-	// TODO(mozhuli): Add fakeCRDClient.
-	CRDClient         *crdClient.CRDClient
+	Tenants           map[string]*tenants.Tenant
+	Users             map[string]*users.User
+	Networks          map[string]*drivertypes.Network
+	Subnets           map[string]*subnets.Subnet
+	Routers           map[string]*routers.Router
+	Ports             map[string][]ports.Port
+	CRDClient         crdClient.Interface
 	PluginName        string
 	IntegrationBridge string
 }
@@ -54,7 +53,7 @@ type FakeOSClient struct {
 var _ = Interface(&FakeOSClient{})
 
 // NewFake creates a new FakeOSClient.
-func NewFake() *FakeOSClient {
+func NewFake(crdClient crdClient.Interface) *FakeOSClient {
 	return &FakeOSClient{
 		Tenants:           make(map[string]*tenants.Tenant),
 		Users:             make(map[string]*users.User),
@@ -62,6 +61,7 @@ func NewFake() *FakeOSClient {
 		Subnets:           make(map[string]*subnets.Subnet),
 		Routers:           make(map[string]*routers.Router),
 		Ports:             make(map[string][]ports.Port),
+		CRDClient:         crdClient,
 		PluginName:        "ovs",
 		IntegrationBridge: "bi-int",
 	}
@@ -176,7 +176,7 @@ func (os *FakeOSClient) GetTenantIDFromName(tenantName string) (string, error) {
 		tenant *crv1.Tenant
 		err    error
 	)
-	// TODO(mozhuli): use fakeCRDClient.
+
 	if tenant, err = os.CRDClient.GetTenant(tenantName); err != nil {
 		return "", err
 	}
@@ -384,8 +384,7 @@ func (os *FakeOSClient) EnsureLoadBalancerDeleted(name string) error {
 }
 
 // GetCRDClient returns the CRDClient.
-// TODO(mozhuli): use fakeCRDClient.
-func (os *FakeOSClient) GetCRDClient() *crdClient.CRDClient {
+func (os *FakeOSClient) GetCRDClient() crdClient.Interface {
 	return os.CRDClient
 }
 

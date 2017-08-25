@@ -24,6 +24,7 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 
+	crdClient "git.openstack.org/openstack/stackube/pkg/kubecrd"
 	"git.openstack.org/openstack/stackube/pkg/openstack"
 	"git.openstack.org/openstack/stackube/pkg/util"
 
@@ -190,10 +191,15 @@ func TestClusterNoEndpoint(t *testing.T) {
 		Port:           "80",
 	}
 
-	//Creates fake iptables.
+	// Creates fake iptables.
 	ipt := NewFake()
-	//Create a fake openstack client.
-	osClient := openstack.NewFake()
+	// Creates fake CRD client.
+	crdClient, err := crdClient.NewFake()
+	if err != nil {
+		t.Fatal("Failed init fake CRD client")
+	}
+	// Create a fake openstack client.
+	osClient := openstack.NewFake(crdClient)
 	// Injects fake network.
 	networkName := util.BuildNetworkName(testNamespace, testNamespace)
 	osClient.SetNetwork(networkName, "123")
@@ -226,7 +232,7 @@ func TestClusterNoEndpoint(t *testing.T) {
 	}
 }
 
-func noClusterIPType(svcType v1.ServiceType) []Rule {
+func noClusterIPType(t *testing.T, svcType v1.ServiceType) []Rule {
 	testNamespace := "test"
 	svcIP := "1.2.3.4"
 	svcPort := 80
@@ -237,8 +243,13 @@ func noClusterIPType(svcType v1.ServiceType) []Rule {
 
 	// Creates fake iptables.
 	ipt := NewFake()
+	// Creates fake CRD client.
+	crdClient, err := crdClient.NewFake()
+	if err != nil {
+		t.Fatal("Failed init fake CRD client")
+	}
 	// Create a fake openstack client.
-	osClient := openstack.NewFake()
+	osClient := openstack.NewFake(crdClient)
 	// Injects fake network.
 	networkName := util.BuildNetworkName(testNamespace, testNamespace)
 	osClient.SetNetwork(networkName, "123")
@@ -277,7 +288,7 @@ func TestNoClusterIPType(t *testing.T) {
 	}
 
 	for k, tc := range testCases {
-		got := noClusterIPType(tc)
+		got := noClusterIPType(t, tc)
 		if len(got) != 0 {
 			errorf(fmt.Sprintf("%v: unexpected rule for chain %v without ClusterIP service type", k, ChainSKPrerouting), got, t)
 		}
@@ -295,8 +306,13 @@ func TestClusterIPEndpointsJump(t *testing.T) {
 
 	// Creates fake iptables.
 	ipt := NewFake()
+	// Creates fake CRD client.
+	crdClient, err := crdClient.NewFake()
+	if err != nil {
+		t.Fatal("Failed init fake CRD client")
+	}
 	// Create a fake openstack client.
-	osClient := openstack.NewFake()
+	osClient := openstack.NewFake(crdClient)
 	// Injects fake network.
 	networkName := util.BuildNetworkName(testNamespace, testNamespace)
 	osClient.SetNetwork(networkName, "123")
@@ -365,8 +381,13 @@ func TestMultiNamespacesService(t *testing.T) {
 
 	// Creates fake iptables.
 	ipt := NewFake()
+	// Creates fake CRD client.
+	crdClient, err := crdClient.NewFake()
+	if err != nil {
+		t.Fatal("Failed init fake CRD client")
+	}
 	// Create a fake openstack client.
-	osClient := openstack.NewFake()
+	osClient := openstack.NewFake(crdClient)
 	// Injects fake network.
 	networkName1 := util.BuildNetworkName(ns1, ns1)
 	osClient.SetNetwork(networkName1, "123")

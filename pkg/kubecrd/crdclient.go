@@ -30,12 +30,34 @@ import (
 	"github.com/golang/glog"
 )
 
-type CRDClient struct {
-	Client *rest.RESTClient
-	Scheme *runtime.Scheme
+// Interface should be implemented by a CRD client.
+type Interface interface {
+	// AddTenant adds Tenant CRD object by given object.
+	AddTenant(tenant *crv1.Tenant) error
+	// GetTenant returns Tenant CRD object by tenantName.
+	GetTenant(tenantName string) (*crv1.Tenant, error)
+	// UpdateTenant updates Tenant CRD object by given object.
+	UpdateTenant(tenant *crv1.Tenant)
+	// AddNetwork adds Network CRD object by given object.
+	AddNetwork(network *crv1.Network) error
+	// UpdateNetwork updates Network CRD object by given object.
+	UpdateNetwork(network *crv1.Network)
+	// DeleteNetwork deletes Network CRD object by networkName.
+	DeleteNetwork(networkName string) error
+	// Client returns the RESTClient.
+	Client() *rest.RESTClient
+	// Scheme returns runtime scheme.
+	Scheme() *runtime.Scheme
 }
 
-func NewCRDClient(cfg *rest.Config) (*CRDClient, error) {
+// CRDClient implements the Interface.
+type CRDClient struct {
+	client *rest.RESTClient
+	scheme *runtime.Scheme
+}
+
+// NewCRDClient returns a new CRD client.
+func NewCRDClient(cfg *rest.Config) (Interface, error) {
 	scheme := runtime.NewScheme()
 	if err := crv1.AddToScheme(scheme); err != nil {
 		return nil, err
@@ -53,14 +75,24 @@ func NewCRDClient(cfg *rest.Config) (*CRDClient, error) {
 	}
 
 	return &CRDClient{
-		Client: client,
-		Scheme: scheme,
+		client: client,
+		scheme: scheme,
 	}, nil
 }
 
-// UpdateNetwork updates Network CRD object by given object
+// Client returns the RESTClient.
+func (c *CRDClient) Client() *rest.RESTClient {
+	return c.client
+}
+
+// Scheme returns runtime scheme.
+func (c *CRDClient) Scheme() *runtime.Scheme {
+	return c.scheme
+}
+
+// UpdateNetwork updates Network CRD object by given object.
 func (c *CRDClient) UpdateNetwork(network *crv1.Network) {
-	err := c.Client.Put().
+	err := c.client.Put().
 		Name(network.Name).
 		Namespace(network.Namespace).
 		Resource(crv1.NetworkResourcePlural).
@@ -75,9 +107,9 @@ func (c *CRDClient) UpdateNetwork(network *crv1.Network) {
 	}
 }
 
-// UpdateTenant updates Network CRD object by given object
+// UpdateTenant updates Network CRD object by given object.
 func (c *CRDClient) UpdateTenant(tenant *crv1.Tenant) {
-	err := c.Client.Put().
+	err := c.client.Put().
 		Name(tenant.Name).
 		Namespace(util.SystemTenant).
 		Resource(crv1.TenantResourcePlural).
@@ -92,12 +124,12 @@ func (c *CRDClient) UpdateTenant(tenant *crv1.Tenant) {
 	}
 }
 
-// GetTenant returns tenant from CRD
-// NOTE: all tenant are stored under system namespace
+// GetTenant returns Tenant CRD object by tenantName.
+// NOTE: all tenant are stored under system namespace.
 func (c *CRDClient) GetTenant(tenantName string) (*crv1.Tenant, error) {
 	tenant := crv1.Tenant{}
-	// tenant always has same name and namespace
-	err := c.Client.Get().
+	// tenant always has the same name with namespace
+	err := c.client.Get().
 		Resource(crv1.TenantResourcePlural).
 		Namespace(util.SystemTenant).
 		Name(tenantName).
@@ -108,10 +140,10 @@ func (c *CRDClient) GetTenant(tenantName string) (*crv1.Tenant, error) {
 	return &tenant, nil
 }
 
-// AddTenant adds tenant to CRD
-// NOTE: all tenant are added to system namespace
+// AddTenant adds Tenant CRD object by given object.
+// NOTE: all tenant are added to system namespace.
 func (c *CRDClient) AddTenant(tenant *crv1.Tenant) error {
-	err := c.Client.Post().
+	err := c.client.Post().
 		Namespace(util.SystemTenant).
 		Resource(crv1.TenantResourcePlural).
 		Body(tenant).
@@ -122,8 +154,9 @@ func (c *CRDClient) AddTenant(tenant *crv1.Tenant) error {
 	return nil
 }
 
+// AddNetwork adds Network CRD object by given object.
 func (c *CRDClient) AddNetwork(network *crv1.Network) error {
-	err := c.Client.Post().
+	err := c.client.Post().
 		Resource(crv1.NetworkResourcePlural).
 		Namespace(network.GetNamespace()).
 		Body(network).
@@ -134,12 +167,13 @@ func (c *CRDClient) AddNetwork(network *crv1.Network) error {
 	return nil
 }
 
-func (c *CRDClient) DeleteNetwork(namespace string) error {
-	// NOTE: the automatically created network for tenant use namespace as name
-	err := c.Client.Delete().
+// DeleteNetwork deletes Network CRD object by networkName.
+// NOTE: the automatically created network for tenant use namespace as name.
+func (c *CRDClient) DeleteNetwork(networkName string) error {
+	err := c.client.Delete().
 		Resource(crv1.NetworkResourcePlural).
-		Namespace(namespace).
-		Name(namespace).
+		Namespace(networkName).
+		Name(networkName).
 		Do().Error()
 	if err != nil {
 		return fmt.Errorf("failed to delete Network: %v", err)

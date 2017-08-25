@@ -34,6 +34,7 @@ var (
 		"path to kubernetes admin config file")
 	cloudconfig = pflag.String("cloudconfig", "/etc/stackube.conf",
 		"path to stackube config file")
+        version = pflag.Bool("version", false, "Display version")
 )
 
 func verifyClientSetting() error {
@@ -56,7 +57,7 @@ func verifyClientSetting() error {
 }
 
 func main() {
-	util.InitFlags()
+	util.InitFlags(version)
 	util.InitLogs()
 	defer util.FlushLogs()
 

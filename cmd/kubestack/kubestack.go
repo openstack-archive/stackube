@@ -356,11 +356,11 @@ func AddIgnoreUnknownArgs() error {
 }
 
 func main() {
-	// Display the version on "-v", otherwise just delegate to the skel code.
+	// Display the version on "--version", otherwise just delegate to the skel code.
 	// Use a new flag set so as not to conflict with existing libraries which use "flag"
 	flagSet := flag.NewFlagSet("kubestack", flag.ExitOnError)
 
-	version := flagSet.Bool("v", false, "Display version")
+	version := flagSet.Bool("version", false, "Display version")
 	err := flagSet.Parse(os.Args[1:])
 	if err != nil {
 		fmt.Println(err)

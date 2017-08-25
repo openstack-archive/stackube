@@ -27,6 +27,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
+        "os"
 )
 
 var (
@@ -34,6 +35,8 @@ var (
 		"path to kubernetes admin config file")
 	cloudconfig = pflag.String("cloudconfig", "/etc/stackube.conf",
 		"path to stackube config file")
+	version = pflag.Bool("version", false, "Display version")
+	VERSION = "0.1"
 )
 
 func verifyClientSetting() error {
@@ -59,6 +62,11 @@ func main() {
 	util.InitFlags()
 	util.InitLogs()
 	defer util.FlushLogs()
+
+	if *version {
+		fmt.Println(VERSION)
+		os.Exit(0)
+	}
 
 	// Verify client setting at the beginning and fail early if there are errors.
 	err := verifyClientSetting()

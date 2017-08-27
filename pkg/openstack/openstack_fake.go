@@ -53,6 +53,7 @@ type FakeOSClient struct {
 	Subnets           map[string]*subnets.Subnet
 	Routers           map[string]*routers.Router
 	Ports             map[string][]ports.Port
+	LoadBalancers     map[string]*LoadBalancer
 	CRDClient         crdClient.Interface
 	PluginName        string
 	IntegrationBridge string
@@ -70,6 +71,7 @@ func NewFake(crdClient crdClient.Interface) *FakeOSClient {
 		Subnets:           make(map[string]*subnets.Subnet),
 		Routers:           make(map[string]*routers.Router),
 		Ports:             make(map[string][]ports.Port),
+		LoadBalancers:     make(map[string]*LoadBalancer),
 		CRDClient:         crdClient,
 		PluginName:        "ovs",
 		IntegrationBridge: "bi-int",
@@ -156,14 +158,11 @@ func (f *FakeOSClient) SetUser(userName, userID, tenantID string) {
 }
 
 // SetNetwork injects fake network.
-func (f *FakeOSClient) SetNetwork(networkName, networkID string) {
+func (f *FakeOSClient) SetNetwork(network *drivertypes.Network) {
 	f.Lock()
 	defer f.Unlock()
-	network := &drivertypes.Network{
-		Name: networkName,
-		Uid:  networkID,
-	}
-	f.Networks[networkName] = network
+
+	f.Networks[network.Name] = network
 }
 
 // SetPort injects fake port.
@@ -183,6 +182,14 @@ func (f *FakeOSClient) SetPort(networkID, deviceOwner, deviceID string) {
 	}
 	netPorts = append(netPorts, p)
 	f.Ports[networkID] = netPorts
+}
+
+// SetLoadbalancer injects fake loadbalancer.
+func (f *FakeOSClient) SetLoadbalancer(lb *LoadBalancer) {
+	f.Lock()
+	defer f.Unlock()
+
+	f.LoadBalancers[lb.Name] = lb
 }
 
 func tenantIDHash(tenantName string) string {
@@ -537,16 +544,47 @@ func (f *FakeOSClient) UpdatePortsBinding(portID, deviceOwner string) error {
 
 // LoadBalancerExist is a test implementation of Interface.LoadBalancerExist.
 func (f *FakeOSClient) LoadBalancerExist(name string) (bool, error) {
+	f.Lock()
+	defer f.Unlock()
+	f.appendCalled("LoadBalancerExist", name)
+	if err := f.getError("LoadBalancerExist"); err != nil {
+		return false, err
+	}
+
+	if _, ok := f.LoadBalancers[name]; !ok {
+		return false, nil
+	}
+
 	return true, nil
 }
 
 // EnsureLoadBalancer is a test implementation of Interface.EnsureLoadBalancer.
 func (f *FakeOSClient) EnsureLoadBalancer(lb *LoadBalancer) (*LoadBalancerStatus, error) {
-	return nil, nil
+	f.Lock()
+	defer f.Unlock()
+	f.appendCalled("EnsureLoadBalancer", lb)
+	if err := f.getError("EnsureLoadBalancer"); err != nil {
+		return nil, err
+	}
+
+	f.LoadBalancers[lb.Name] = lb
+
+	return &LoadBalancerStatus{
+		InternalIP: lb.InternalIP,
+		ExternalIP: lb.ExternalIP,
+	}, nil
 }
 
 // EnsureLoadBalancerDeleted is a test implementation of Interface.EnsureLoadBalancerDeleted.
 func (f *FakeOSClient) EnsureLoadBalancerDeleted(name string) error {
+	f.Lock()
+	defer f.Unlock()
+	f.appendCalled("EnsureLoadBalancerDeleted", name)
+	if err := f.getError("EnsureLoadBalancerDeleted"); err != nil {
+		return err
+	}
+
+	delete(f.LoadBalancers, name)
 	return nil
 }
 

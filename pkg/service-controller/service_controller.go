@@ -72,7 +72,7 @@ type serviceCache struct {
 type ServiceController struct {
 	cache *serviceCache
 
-	kubeClientset    *kubernetes.Clientset
+	kubeClient       kubernetes.Interface
 	osClient         openstack.Interface
 	factory          informers.SharedInformerFactory
 	serviceInformer  informersV1.ServiceInformer
@@ -84,13 +84,13 @@ type ServiceController struct {
 
 // NewServiceController returns a new service controller to keep openstack lbaas resources
 // (load balancers) in sync with the registry.
-func NewServiceController(kubeClient *kubernetes.Clientset,
+func NewServiceController(kubeClient kubernetes.Interface,
 	osClient openstack.Interface) (*ServiceController, error) {
 	factory := informers.NewSharedInformerFactory(kubeClient, resyncPeriod)
 	s := &ServiceController{
 		osClient:         osClient,
 		factory:          factory,
-		kubeClientset:    kubeClient,
+		kubeClient:       kubeClient,
 		cache:            &serviceCache{serviceMap: make(map[string]*cachedService)},
 		workingQueue:     workqueue.NewNamedDelayingQueue("service"),
 		serviceInformer:  factory.Core().V1().Services(),
@@ -296,7 +296,8 @@ func (s *ServiceController) createLoadBalancerIfNeeded(key string, service *v1.S
 func (s *ServiceController) persistUpdate(service *v1.Service) error {
 	var err error
 	for i := 0; i < clientRetryCount; i++ {
-		_, err = s.kubeClientset.CoreV1Client.Services(service.Namespace).UpdateStatus(service)
+		_, err = s.kubeClient.Core().Services(service.Namespace).UpdateStatus(service)
+		//_, err = s.kubeClient.CoreV1Client.Services(service.Namespace).UpdateStatus(service)
 		if err == nil {
 			return nil
 		}
@@ -348,10 +349,8 @@ func (s *ServiceController) createLoadBalancer(service *v1.Service) (*v1.LoadBal
 	// create the loadbalancer.
 	lbName := buildLoadBalancerName(service)
 	svcPort := service.Spec.Ports[0]
-	externalIP := ""
-	if len(service.Spec.ExternalIPs) > 0 {
-		externalIP = service.Spec.ExternalIPs[0]
-	}
+	externalIP := service.Spec.ExternalIPs[0]
+
 	lb, err := s.osClient.EnsureLoadBalancer(&openstack.LoadBalancer{
 		Name:            lbName,
 		Endpoints:       endpoints,
@@ -374,7 +373,7 @@ func (s *ServiceController) createLoadBalancer(service *v1.Service) (*v1.LoadBal
 }
 
 func (s *ServiceController) getEndpoints(service *v1.Service) ([]openstack.Endpoint, error) {
-	endpoints, err := s.kubeClientset.CoreV1Client.Endpoints(service.Namespace).Get(service.Name, metav1.GetOptions{})
+	endpoints, err := s.kubeClient.Core().Endpoints(service.Namespace).Get(service.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}

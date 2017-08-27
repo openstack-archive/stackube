@@ -26,6 +26,7 @@ import (
 
 	crdClient "git.openstack.org/openstack/stackube/pkg/kubecrd"
 	"git.openstack.org/openstack/stackube/pkg/openstack"
+	drivertypes "git.openstack.org/openstack/stackube/pkg/openstack/types"
 	"git.openstack.org/openstack/stackube/pkg/util"
 
 	"k8s.io/api/core/v1"
@@ -34,10 +35,23 @@ import (
 	"k8s.io/kubernetes/pkg/util/async"
 )
 
+const (
+	defaultNetworkID = "123"
+	defaultPortID    = "123"
+	deviceOwner      = "network:router_interface"
+)
+
 func newFakeServiceInfo(serviceName string, ip net.IP) *serviceInfo {
 	return &serviceInfo{
 		name:      serviceName,
 		clusterIP: ip,
+	}
+}
+
+func defaultNetwork(networkName, uid string) *drivertypes.Network {
+	return &drivertypes.Network{
+		Name: networkName,
+		Uid:  uid,
 	}
 }
 
@@ -202,9 +216,9 @@ func TestClusterNoEndpoint(t *testing.T) {
 	osClient := openstack.NewFake(crdClient)
 	// Injects fake network.
 	networkName := util.BuildNetworkName(testNamespace, testNamespace)
-	osClient.SetNetwork(networkName, "123")
+	osClient.SetNetwork(defaultNetwork(networkName, defaultNetworkID))
 	// Injects fake port.
-	osClient.SetPort("123", "network:router_interface", "123")
+	osClient.SetPort(defaultNetworkID, deviceOwner, defaultPortID)
 	// Creates a new fake proxier.
 	fp := NewFakeProxier(ipt, osClient)
 
@@ -252,9 +266,9 @@ func noClusterIPType(t *testing.T, svcType v1.ServiceType) []Rule {
 	osClient := openstack.NewFake(crdClient)
 	// Injects fake network.
 	networkName := util.BuildNetworkName(testNamespace, testNamespace)
-	osClient.SetNetwork(networkName, "123")
+	osClient.SetNetwork(defaultNetwork(networkName, defaultNetworkID))
 	// Injects fake port.
-	osClient.SetPort("123", "network:router_interface", "123")
+	osClient.SetPort(defaultNetworkID, deviceOwner, defaultPortID)
 	// Creates a new fake proxier.
 	fp := NewFakeProxier(ipt, osClient)
 
@@ -315,9 +329,9 @@ func TestClusterIPEndpointsJump(t *testing.T) {
 	osClient := openstack.NewFake(crdClient)
 	// Injects fake network.
 	networkName := util.BuildNetworkName(testNamespace, testNamespace)
-	osClient.SetNetwork(networkName, "123")
+	osClient.SetNetwork(defaultNetwork(networkName, defaultNetworkID))
 	// Injects fake port.
-	osClient.SetPort("123", "network:router_interface", "123")
+	osClient.SetPort(defaultNetworkID, deviceOwner, defaultPortID)
 	// Creates a new fake proxier.
 	fp := NewFakeProxier(ipt, osClient)
 
@@ -390,12 +404,12 @@ func TestMultiNamespacesService(t *testing.T) {
 	osClient := openstack.NewFake(crdClient)
 	// Injects fake network.
 	networkName1 := util.BuildNetworkName(ns1, ns1)
-	osClient.SetNetwork(networkName1, "123")
+	osClient.SetNetwork(defaultNetwork(networkName1, "123"))
 	networkName2 := util.BuildNetworkName(ns2, ns2)
-	osClient.SetNetwork(networkName2, "456")
+	osClient.SetNetwork(defaultNetwork(networkName2, "456"))
 	// Injects fake port.
-	osClient.SetPort("123", "network:router_interface", "123")
-	osClient.SetPort("456", "network:router_interface", "456")
+	osClient.SetPort("123", deviceOwner, "123")
+	osClient.SetPort("456", deviceOwner, "456")
 	// Creates a new fake proxier.
 	fp := NewFakeProxier(ipt, osClient)
 

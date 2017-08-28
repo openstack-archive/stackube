@@ -40,14 +40,14 @@ const (
 
 // Controller manages life cycle of namespace's rbac.
 type Controller struct {
-	k8sclient     *kubernetes.Clientset
+	k8sclient     kubernetes.Interface
 	kubeCRDClient crdClient.Interface
 	userCIDR      string
 	userGateway   string
 }
 
 // NewRBACController creates a new RBAC controller.
-func NewRBACController(kubeClient *kubernetes.Clientset, kubeCRDClient crdClient.Interface, userCIDR string,
+func NewRBACController(kubeClient kubernetes.Interface, kubeCRDClient crdClient.Interface, userCIDR string,
 	userGateway string) (*Controller, error) {
 	c := &Controller{
 		k8sclient:     kubeClient,

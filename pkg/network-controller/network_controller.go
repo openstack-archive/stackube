@@ -50,7 +50,7 @@ const (
 
 // NetworkController manages the life cycle of Network.
 type NetworkController struct {
-	k8sclient       *kubernetes.Clientset
+	k8sclient       kubernetes.Interface
 	kubeCRDClient   kubecrd.Interface
 	driver          openstack.Interface
 	networkInformer cache.Controller
@@ -67,7 +67,7 @@ func (c *NetworkController) Run(stopCh <-chan struct{}) error {
 }
 
 // NewNetworkController creates a new NetworkController.
-func NewNetworkController(kubeClient *kubernetes.Clientset, osClient openstack.Interface, kubeExtClient *apiextensionsclient.Clientset) (*NetworkController, error) {
+func NewNetworkController(kubeClient kubernetes.Interface, osClient openstack.Interface, kubeExtClient *apiextensionsclient.Clientset) (*NetworkController, error) {
 	// initialize CRD if it does not exist
 	_, err := kubecrd.CreateNetworkCRD(kubeExtClient)
 	if err != nil && !apierrors.IsAlreadyExists(err) {
@@ -155,7 +155,7 @@ func (c *NetworkController) onDelete(obj interface{}) {
 	}
 	// Delete kube-dns services for non-system namespaces.
 	if !util.IsSystemNamespace(net.Namespace) {
-		if err := c.k8sclient.CoreV1Client.Services(net.Namespace).Delete("kube-dns", apismetav1.NewDeleteOptions(0)); err != nil {
+		if err := c.k8sclient.Core().Services(net.Namespace).Delete("kube-dns", apismetav1.NewDeleteOptions(0)); err != nil {
 			glog.Warningf("error on deleting kube-dns service: %v", err)
 		}
 	}
@@ -191,13 +191,13 @@ func (c *NetworkController) createKubeDNSDeployment(namespace string) error {
 	if err = kuberuntime.DecodeInto(scheme.Codecs.UniversalDecoder(), dnsDeploymentBytes, kubeDNSDeploy); err != nil {
 		return fmt.Errorf("unable to decode kube-dns deployment %v", err)
 	}
-	_, err = c.k8sclient.ExtensionsV1beta1Client.Deployments(namespace).Create(kubeDNSDeploy)
+	_, err = c.k8sclient.ExtensionsV1beta1().Deployments(namespace).Create(kubeDNSDeploy)
 	if err != nil {
 		if !apierrors.IsAlreadyExists(err) {
 			return fmt.Errorf("unable to create a new kube-dns deployment: %v", err)
 		}
 
-		if _, err = c.k8sclient.ExtensionsV1beta1Client.Deployments(namespace).Update(kubeDNSDeploy); err != nil {
+		if _, err = c.k8sclient.ExtensionsV1beta1().Deployments(namespace).Update(kubeDNSDeploy); err != nil {
 			return fmt.Errorf("unable to update the kube-dns deployment: %v", err)
 		}
 	}
@@ -206,12 +206,12 @@ func (c *NetworkController) createKubeDNSDeployment(namespace string) error {
 }
 
 func (c *NetworkController) deleteDeployment(namespace, name string) error {
-	if err := c.k8sclient.ExtensionsV1beta1Client.Deployments(namespace).Delete(name, apismetav1.NewDeleteOptions(0)); err != nil {
+	if err := c.k8sclient.ExtensionsV1beta1().Deployments(namespace).Delete(name, apismetav1.NewDeleteOptions(0)); err != nil {
 		return err
 	}
 
 	err := wait.Poll(500*time.Millisecond, 60*time.Second, func() (bool, error) {
-		_, err := c.k8sclient.ExtensionsV1beta1Client.Deployments(namespace).Get(name, apismetav1.GetOptions{})
+		_, err := c.k8sclient.ExtensionsV1beta1().Deployments(namespace).Get(name, apismetav1.GetOptions{})
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				return true, nil
@@ -238,13 +238,13 @@ func (c *NetworkController) createKubeDNSService(namespace string) error {
 	if err = kuberuntime.DecodeInto(scheme.Codecs.UniversalDecoder(), dnsServiceBytes, dnsService); err != nil {
 		return fmt.Errorf("unable to decode kube-dns service %v", err)
 	}
-	_, err = c.k8sclient.CoreV1Client.Services(namespace).Create(dnsService)
+	_, err = c.k8sclient.Core().Services(namespace).Create(dnsService)
 	if err != nil {
 		if !apierrors.IsAlreadyExists(err) {
 			return fmt.Errorf("unable to create a new kube-dns service: %v", err)
 		}
 
-		if _, err = c.k8sclient.CoreV1Client.Services(namespace).Update(dnsService); err != nil {
+		if _, err = c.k8sclient.Core().Services(namespace).Update(dnsService); err != nil {
 			return fmt.Errorf("unable to update the kube-dns service: %v", err)
 		}
 	}

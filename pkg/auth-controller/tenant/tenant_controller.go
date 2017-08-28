@@ -36,13 +36,13 @@ import (
 
 // TenantController manages the life cycle of Tenant.
 type TenantController struct {
-	k8sClient       *kubernetes.Clientset
+	k8sClient       kubernetes.Interface
 	kubeCRDClient   crdClient.Interface
 	openstackClient openstack.Interface
 }
 
 // NewTenantController creates a new tenant controller.
-func NewTenantController(kubeClient *kubernetes.Clientset,
+func NewTenantController(kubeClient kubernetes.Interface,
 	osClient openstack.Interface,
 	kubeExtClient *apiextensionsclient.Clientset) (*TenantController, error) {
 	// initialize CRD if it does not exist

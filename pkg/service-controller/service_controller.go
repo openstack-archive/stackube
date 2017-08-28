@@ -297,7 +297,6 @@ func (s *ServiceController) persistUpdate(service *v1.Service) error {
 	var err error
 	for i := 0; i < clientRetryCount; i++ {
 		_, err = s.kubeClient.Core().Services(service.Namespace).UpdateStatus(service)
-		//_, err = s.kubeClient.CoreV1Client.Services(service.Namespace).UpdateStatus(service)
 		if err == nil {
 			return nil
 		}

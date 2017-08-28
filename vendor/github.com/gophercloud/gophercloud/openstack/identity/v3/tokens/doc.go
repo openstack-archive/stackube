@@ -2,5 +2,5 @@
 // resource for the OpenStack Identity service.
 //
 // For more information, see:
-// http://developer.openstack.org/api-ref-identity-v3.html#tokens-v3
+// https://developer.openstack.org/api-ref/identity/v3/index.html#tokens-v3
 package tokens

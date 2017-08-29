@@ -1,0 +1,15 @@
+{    "command": "/usr/bin/ceph-osd -f -d --public-addr __PUBLIC_IP__ --cluster-addr __CLUSTER_IP__",    "config_files": [
+        {
+            "source": "/var/lib/kolla/config_files/ceph.conf",
+            "dest": "/etc/ceph/ceph.conf",
+            "owner": "ceph",
+            "perm": "0600"
+        },
+        {
+            "source": "/var/lib/kolla/config_files/ceph.client.admin.keyring",
+            "dest": "/etc/ceph/ceph.client.admin.keyring",
+            "owner": "ceph",
+            "perm": "0600"
+        }
+    ]
+}

@@ -1,0 +1,4 @@
+{
+    "command": "start-ovsdb-server __OVSDB_IP__ ",
+    "config_files": []
+}

@@ -1,0 +1,19 @@
+kind: MasterConfiguration
+apiVersion: kubeadm.k8s.io/v1alpha1
+kubernetesVersion: "stable"
+controllerManagerExtraArgs:
+  horizontal-pod-autoscaler-use-rest-clients: "true"
+  horizontal-pod-autoscaler-sync-period: "10s"
+  node-monitor-grace-period: "10s"
+  feature-gates: "AllAlpha=true"
+  enable-dynamic-provisioning: "true"
+apiServerExtraArgs:
+  runtime-config: "api/all=true"
+  feature-gates: "AllAlpha=true"
+  experimental-keystone-url: "__KEYSTONE_URL__"
+networking:
+  podSubnet: "__POD_NET_CIDR__"
+api:
+  advertiseAddress: "__KUBERNETES_API_PRIVATE_IP__"
+apiServerCertSANs: ["__KUBERNETES_API_PUBLIC_IP__"]
+

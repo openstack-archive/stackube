@@ -45,3 +45,11 @@ User Guide
    :maxdepth: 2
 
    user_guide
+
+Release Note
+================
+
+.. toctree::
+   :maxdepth: 2
+
+   release_notes/1_0

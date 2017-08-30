@@ -52,9 +52,9 @@ Three docker images will be built:
 
 ::
 
-  stackube/stackube-proxy:v0.1
-  stackube/stackube-controller:v0.1
-  stackube/kubestack:v0.1
+  stackube/stackube-proxy:v1.0beta
+  stackube/stackube-controller:v1.0beta
+  stackube/kubestack:v1.0beta
 
 ===========================
 (Optional) Configure Stackube

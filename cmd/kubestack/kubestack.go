@@ -45,7 +45,7 @@ import (
 
 var (
 	// VERSION is filled out during the build process (using git describe output)
-	VERSION = "0.1"
+	VERSION = "1.0beta"
 
 	netnsBasePath = "/var/run/netns"
 )

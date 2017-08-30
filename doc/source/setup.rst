@@ -15,6 +15,9 @@ This is a single node devbox
 
    single_node
 
+Multi nodes deployment
+==============
+
 .. toctree::
    :maxdepth: 2
 

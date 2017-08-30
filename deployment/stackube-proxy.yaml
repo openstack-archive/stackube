@@ -55,7 +55,7 @@ spec:
       containers:
         - name: stackube-proxy
           resources: {}
-          image: stackube/stackube-proxy:v0.1
+          image: stackube/stackube-proxy:v1.0beta
           securityContext:
             privileged: true
           command: ["/start.sh"]

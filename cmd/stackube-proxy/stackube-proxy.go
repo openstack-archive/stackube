@@ -36,7 +36,7 @@ var (
 	cloudconfig = pflag.String("cloudconfig", "/etc/stackube.conf",
 		"path to stackube config file")
 	version = pflag.Bool("version", false, "Display version")
-	VERSION = "0.1"
+	VERSION = "1.0beta"
 )
 
 func verifyClientSetting() error {

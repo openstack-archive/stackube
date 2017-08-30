@@ -21,9 +21,9 @@
 GIT_HOST = git.openstack.org
 SHELL := /bin/bash
 
-STACKUBE_VERSION = 0.1
-STACKUBE_PROXY_VERSION = 0.1
-KUBESTACK_VERSION = 0.1
+STACKUBE_VERSION = 1.0beta
+STACKUBE_PROXY_VERSION = 1.0beta
+KUBESTACK_VERSION = 1.0beta
 
 PWD := $(shell pwd)
 BASE_DIR := $(shell basename $(PWD))

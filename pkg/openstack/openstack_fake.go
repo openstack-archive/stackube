@@ -283,7 +283,7 @@ func (f *FakeOSClient) GetTenantIDFromName(tenantName string) (string, error) {
 
 	t, ok := f.Tenants[tenantName]
 	if !ok {
-		return "", fmt.Errorf("Tenant %s not exist", tenantName)
+		return "", ErrNotFound
 	}
 
 	return t.ID, nil
@@ -303,7 +303,7 @@ func (f *FakeOSClient) CheckTenantByID(tenantID string) (bool, error) {
 			return true, nil
 		}
 	}
-	return false, fmt.Errorf("Tenant %s not exist", tenantID)
+	return false, nil
 }
 
 // CreateUser is a test implementation of Interface.CreateUser.
@@ -340,8 +340,6 @@ func (f *FakeOSClient) DeleteAllUsersOnTenant(tenantName string) error {
 }
 
 func (f *FakeOSClient) createNetwork(networkName, tenantID string) error {
-	f.Lock()
-	defer f.Unlock()
 	f.appendCalled("createNetwork", networkName, tenantID)
 	if err := f.getError("createNetwork"); err != nil {
 		return err
@@ -361,8 +359,6 @@ func (f *FakeOSClient) createNetwork(networkName, tenantID string) error {
 }
 
 func (f *FakeOSClient) deleteNetwork(networkName string) error {
-	f.Lock()
-	defer f.Unlock()
 	f.appendCalled("deleteNetwork", networkName)
 	if err := f.getError("deleteNetwork"); err != nil {
 		return err
@@ -373,8 +369,6 @@ func (f *FakeOSClient) deleteNetwork(networkName string) error {
 }
 
 func (f *FakeOSClient) createRouter(routerName, tenantID string) error {
-	f.Lock()
-	defer f.Unlock()
 	f.appendCalled("createRouter", routerName, tenantID)
 	if err := f.getError("createRouter"); err != nil {
 		return err
@@ -394,8 +388,6 @@ func (f *FakeOSClient) createRouter(routerName, tenantID string) error {
 }
 
 func (f *FakeOSClient) deleteRouter(routerName string) error {
-	f.Lock()
-	defer f.Unlock()
 	f.appendCalled("deleteRouter", routerName)
 	if err := f.getError("deleteRouter"); err != nil {
 		return err
@@ -406,8 +398,6 @@ func (f *FakeOSClient) deleteRouter(routerName string) error {
 }
 
 func (f *FakeOSClient) createSubnet(subnetName, networkID, tenantID string) error {
-	f.Lock()
-	defer f.Unlock()
 	f.appendCalled("createSubnet", subnetName, networkID, tenantID)
 	if err := f.getError("createSubnet"); err != nil {
 		return err
@@ -461,10 +451,14 @@ func (f *FakeOSClient) CreateNetwork(network *drivertypes.Network) error {
 	return nil
 }
 
-// GetNetworkByID gets network by networkID.
-// CreateTenant is a test implementation of Interface.CreateTenant.
+// GetNetworkByID is a test implementation of Interface.GetNetworkByID.
 func (f *FakeOSClient) GetNetworkByID(networkID string) (*drivertypes.Network, error) {
-	return nil, nil
+	for _, network := range f.Networks {
+		if network.Uid == networkID {
+			return network, nil
+		}
+	}
+	return nil, ErrNotFound
 }
 
 // GetNetworkByName is a test implementation of Interface.GetNetworkByName.
@@ -478,7 +472,7 @@ func (f *FakeOSClient) GetNetworkByName(networkName string) (*drivertypes.Networ
 
 	network, ok := f.Networks[networkName]
 	if !ok {
-		return nil, fmt.Errorf("Network %s not exist", networkName)
+		return nil, ErrNotFound
 	}
 
 	return network, nil
@@ -486,22 +480,30 @@ func (f *FakeOSClient) GetNetworkByName(networkName string) (*drivertypes.Networ
 
 // DeleteNetwork is a test implementation of Interface.DeleteNetwork.
 func (f *FakeOSClient) DeleteNetwork(networkName string) error {
+	f.Lock()
+	defer f.Unlock()
+	f.appendCalled("DeleteNetwork", networkName)
+	if err := f.getError("DeleteNetwork"); err != nil {
+		return err
+	}
+
+	delete(f.Networks, networkName)
 	return nil
 }
 
 // GetProviderSubnet is a test implementation of Interface.GetProviderSubnet.
 func (f *FakeOSClient) GetProviderSubnet(osSubnetID string) (*drivertypes.Subnet, error) {
-	return nil, nil
+	return nil, fmt.Errorf("Not implemented")
 }
 
 // CreatePort is a test implementation of Interface.CreatePort.
 func (f *FakeOSClient) CreatePort(networkID, tenantID, portName string) (*portsbinding.Port, error) {
-	return nil, nil
+	return nil, fmt.Errorf("Not implemented")
 }
 
 // GetPort is a test implementation of Interface.GetPort.
 func (f *FakeOSClient) GetPort(name string) (*ports.Port, error) {
-	return nil, nil
+	return nil, fmt.Errorf("Not implemented")
 }
 
 // ListPorts is a test implementation of Interface.ListPorts.
@@ -529,17 +531,17 @@ func (f *FakeOSClient) ListPorts(networkID, deviceOwner string) ([]ports.Port, e
 
 // DeletePortByName is a test implementation of Interface.DeletePortByName.
 func (f *FakeOSClient) DeletePortByName(portName string) error {
-	return nil
+	return fmt.Errorf("Not implemented")
 }
 
 // DeletePortByID is a test implementation of Interface.DeletePortByID.
 func (f *FakeOSClient) DeletePortByID(portID string) error {
-	return nil
+	return fmt.Errorf("Not implemented")
 }
 
 // UpdatePortsBinding is a test implementation of Interface.UpdatePortsBinding.
 func (f *FakeOSClient) UpdatePortsBinding(portID, deviceOwner string) error {
-	return nil
+	return fmt.Errorf("Not implemented")
 }
 
 // LoadBalancerExist is a test implementation of Interface.LoadBalancerExist.

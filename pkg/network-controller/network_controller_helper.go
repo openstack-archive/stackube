@@ -78,8 +78,6 @@ func (c *NetworkController) addNetworkToDriver(kubeNetwork *crv1.Network) error 
 		},
 	}
 
-	newNetworkStatus := crv1.NetworkActive
-
 	glog.V(4).Infof("[NetworkController]: adding network %s", driverNetwork.Name)
 
 	// Check if tenant exist or not by tenantID.
@@ -98,33 +96,36 @@ func (c *NetworkController) addNetworkToDriver(kubeNetwork *crv1.Network) error 
 	if kubeNetwork.Spec.NetworkID != "" {
 		_, err := c.driver.GetNetworkByID(kubeNetwork.Spec.NetworkID)
 		if err != nil {
-			glog.Warningf("[NetworkController]: network %s doesn't exit in network provider", kubeNetwork.Spec.NetworkID)
-			newNetworkStatus = crv1.NetworkFailed
+			kubeNetwork.Status.State = crv1.NetworkFailed
+			c.kubeCRDClient.UpdateNetwork(kubeNetwork)
+			return fmt.Errorf("network %s doesn't exit in network provider", kubeNetwork.Spec.NetworkID)
 		}
 	} else {
 		if len(driverNetwork.Subnets) == 0 {
-			glog.Warningf("[NetworkController]: subnets of %s is null", driverNetwork.Name)
-			newNetworkStatus = crv1.NetworkFailed
-		} else {
-			// Check if provider network has already created
-			_, err := c.driver.GetNetworkByName(networkName)
-			if err == nil {
-				glog.Infof("[NetworkController]: network %s has already created", networkName)
-			} else if err.Error() == util.ErrNotFound.Error() {
-				// Create a new network by network provider
-				err := c.driver.CreateNetwork(driverNetwork)
-				if err != nil {
-					glog.Warningf("[NetworkController]: create network %s failed: %v", driverNetwork.Name, err)
-					newNetworkStatus = crv1.NetworkFailed
-				}
-			} else {
-				glog.Warningf("[NetworkController]: get network failed: %v", err)
-				newNetworkStatus = crv1.NetworkFailed
+			kubeNetwork.Status.State = crv1.NetworkFailed
+			c.kubeCRDClient.UpdateNetwork(kubeNetwork)
+			return fmt.Errorf("subnets of %s is null", driverNetwork.Name)
+		}
+		// Check if provider network has already created
+		_, err := c.driver.GetNetworkByName(networkName)
+		if err == nil {
+			glog.Infof("[NetworkController]: network %s has already created", networkName)
+		} else if err.Error() == util.ErrNotFound.Error() {
+			// Create a new network by network provider
+			err := c.driver.CreateNetwork(driverNetwork)
+			if err != nil {
+				kubeNetwork.Status.State = crv1.NetworkFailed
+				c.kubeCRDClient.UpdateNetwork(kubeNetwork)
+				return fmt.Errorf("create network %s failed: %v", driverNetwork.Name, err)
 			}
+		} else {
+			kubeNetwork.Status.State = crv1.NetworkFailed
+			c.kubeCRDClient.UpdateNetwork(kubeNetwork)
+			return fmt.Errorf("get network failed: %v", err)
 		}
 	}
 
-	kubeNetwork.Status.State = newNetworkStatus
+	kubeNetwork.Status.State = crv1.NetworkActive
 	c.kubeCRDClient.UpdateNetwork(kubeNetwork)
 	return nil
 }

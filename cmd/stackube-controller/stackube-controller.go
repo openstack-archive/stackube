@@ -46,7 +46,7 @@ var (
 	userCIDR    = pflag.String("user-cidr", "10.244.0.0/16", "user Pod network CIDR")
 	userGateway = pflag.String("user-gateway", "10.244.0.1", "user Pod network gateway")
 	version     = pflag.Bool("version", false, "Display version")
-	VERSION     = "0.1"
+	VERSION     = "1.0beta"
 )
 
 func startControllers(kubeClient *kubernetes.Clientset,

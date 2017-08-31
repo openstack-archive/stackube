@@ -41,7 +41,7 @@ spec:
         # This container installs the kubestack CNI binaries
         # and CNI network config file on each node.
         - name: install-cni
-          image: stackube/kubestack:v0.1
+          image: stackube/kubestack:v1.0beta
           command: ["/install-cni.sh"]
           env:
             # The endpoint of openstack authentication.
@@ -155,7 +155,7 @@ spec:
       serviceAccountName: stackube-controller
       containers:
         - name: stackube-controller
-          image: stackube/stackube-controller:v0.1
+          image: stackube/stackube-controller:v1.0beta
           command: ["/start.sh"]
           env:
             # The endpoint of openstack authentication.

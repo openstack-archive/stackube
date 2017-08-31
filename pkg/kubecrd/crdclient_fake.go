@@ -118,7 +118,7 @@ func (f *FakeCRDClient) GetCalledDetails() []CalledDetail {
 }
 
 // SetTenants injects fake tenant.
-func (f *FakeCRDClient) SetTenants(tenants []*crv1.Tenant) {
+func (f *FakeCRDClient) SetTenants(tenants ...*crv1.Tenant) {
 	f.Lock()
 	defer f.Unlock()
 	for _, tenant := range tenants {
@@ -127,7 +127,7 @@ func (f *FakeCRDClient) SetTenants(tenants []*crv1.Tenant) {
 }
 
 // SetNetworks injects fake network.
-func (f *FakeCRDClient) SetNetworks(networks []*crv1.Network) {
+func (f *FakeCRDClient) SetNetworks(networks ...*crv1.Network) {
 	f.Lock()
 	defer f.Unlock()
 	for _, network := range networks {
@@ -177,6 +177,20 @@ func (f *FakeCRDClient) GetTenant(tenantName string) (*crv1.Tenant, error) {
 	}
 
 	return tenant, nil
+}
+
+// DeleteTenant is a test implementation of Interface.DeleteTenant.
+func (f *FakeCRDClient) DeleteTenant(tenantName string) error {
+	f.Lock()
+	defer f.Unlock()
+	f.appendCalled("DeleteTenant", tenantName)
+	if err := f.getError("DeleteTenant"); err != nil {
+		return err
+	}
+
+	delete(f.Tenants, tenantName)
+
+	return nil
 }
 
 // AddNetwork is a test implementation of Interface.AddNetwork.

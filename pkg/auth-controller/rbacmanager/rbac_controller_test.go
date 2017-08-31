@@ -18,8 +18,11 @@ package rbacmanager
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
 
+	crv1 "git.openstack.org/openstack/stackube/pkg/apis/v1"
+	"git.openstack.org/openstack/stackube/pkg/auth-controller/rbacmanager/rbac"
 	crdClient "git.openstack.org/openstack/stackube/pkg/kubecrd"
 	"git.openstack.org/openstack/stackube/pkg/util"
 	"k8s.io/api/core/v1"
@@ -28,9 +31,44 @@ import (
 )
 
 const (
-	userCIDR        = "10.244.0.0/16"
-	useruserGateway = "10.244.0.1"
+	userCIDR    = "10.244.0.0/16"
+	userGateway = "10.244.0.1"
 )
+
+var systemTenant = &crv1.Tenant{
+	ObjectMeta: metav1.ObjectMeta{
+		Name:      util.SystemTenant,
+		Namespace: util.SystemTenant,
+	},
+	Spec: crv1.TenantSpec{
+		UserName: util.SystemTenant,
+		Password: util.SystemPassword,
+	},
+}
+
+var systemNetwork = &crv1.Network{
+	ObjectMeta: metav1.ObjectMeta{
+		Name:      util.SystemNetwork,
+		Namespace: util.SystemTenant,
+	},
+	Spec: crv1.NetworkSpec{
+		CIDR:    userCIDR,
+		Gateway: userGateway,
+	},
+}
+
+func newNetworkForTenant(namespace string) *crv1.Network {
+	return &crv1.Network{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      namespace,
+			Namespace: namespace,
+		},
+		Spec: crv1.NetworkSpec{
+			CIDR:    userCIDR,
+			Gateway: userGateway,
+		},
+	}
+}
 
 func newNamespace(name string) *v1.Namespace {
 	return &v1.Namespace{
@@ -48,7 +86,7 @@ func newController() (*Controller, *crdClient.FakeCRDClient, *fake.Clientset, er
 		return nil, nil, nil, err
 	}
 
-	controller, _ := NewRBACController(client, kubeCRDClient, userCIDR, useruserGateway)
+	controller, _ := NewRBACController(client, kubeCRDClient, userCIDR, userGateway)
 
 	return controller, kubeCRDClient, client, nil
 }
@@ -68,11 +106,12 @@ func TestCreateNetworkForTenant(t *testing.T) {
 			testName: "Failed add network",
 			updateFn: func() error {
 
-				// Create a new fake controller.
+				// Creates a new fake controller.
 				controller, kubeCRDClient, _, err = newController()
 				if err != nil {
 					t.Fatalf("Failed start a new fake controller: %v", err)
 				}
+				// Injects AddNetwork error.
 				kubeCRDClient.InjectError("AddNetwork", fmt.Errorf("failed to create Network"))
 				return controller.createNetworkForTenant(testNamespace)
 			},
@@ -106,10 +145,7 @@ func TestCreateNetworkForTenant(t *testing.T) {
 			network, ok := kubeCRDClient.Networks[testNamespace]
 			if !ok {
 				t.Errorf("Case[%d]: %s expected %s network to be created, got none", tci, tc.testName, testNamespace)
-			} else if network.Name != util.SystemNetwork &&
-				network.Namespace != util.SystemNetwork &&
-				network.Spec.CIDR != userCIDR &&
-				network.Spec.Gateway != useruserGateway {
+			} else if reflect.DeepEqual(network, newNetworkForTenant(testNamespace)) {
 				t.Errorf("Case[%d]: %s expected the created %s network has incorrect parameters: %v", tci, tc.testName, testNamespace, network)
 			}
 		}
@@ -135,6 +171,7 @@ func TestInitSystemReservedTenantNetwork(t *testing.T) {
 				if err != nil {
 					t.Fatalf("Failed start a new fake controller: %v", err)
 				}
+				// Injects AddTenant error.
 				kubeCRDClient.InjectError("AddTenant", fmt.Errorf("failed to create Tenant"))
 				return controller.initSystemReservedTenantNetwork()
 
@@ -150,6 +187,7 @@ func TestInitSystemReservedTenantNetwork(t *testing.T) {
 				if err != nil {
 					t.Fatalf("Failed start a new fake controller: %v", err)
 				}
+				// Inject AddNetwork error.
 				kubeCRDClient.InjectError("AddNetwork", fmt.Errorf("failed to create Network"))
 				return controller.initSystemReservedTenantNetwork()
 			},
@@ -186,20 +224,14 @@ func TestInitSystemReservedTenantNetwork(t *testing.T) {
 			tenant, ok := kubeCRDClient.Tenants["default"]
 			if !ok {
 				t.Errorf("Expected default tenant to be created, got none")
-			} else if tenant.Name != util.SystemTenant &&
-				tenant.Namespace != util.SystemTenant &&
-				tenant.Spec.UserName != util.SystemTenant &&
-				tenant.Spec.Password != util.SystemPassword {
+			} else if reflect.DeepEqual(tenant, systemTenant) {
 				t.Errorf("The created default tenant has incorrect parameters: %v", tenant)
 			}
 
 			network, ok := kubeCRDClient.Networks["default"]
 			if !ok {
 				t.Errorf("Expected default network to be created, got none")
-			} else if network.Name != util.SystemNetwork &&
-				network.Namespace != util.SystemNetwork &&
-				network.Spec.CIDR != userCIDR &&
-				network.Spec.Gateway != useruserGateway {
+			} else if reflect.DeepEqual(network, systemNetwork) {
 				t.Errorf("The created default network has incorrect parameters: %v", network)
 			}
 		}
@@ -211,9 +243,8 @@ func testRBAC(t *testing.T, client *fake.Clientset, namespace string) {
 	if err != nil {
 		t.Fatalf("Failed get roleBindings: %v", err)
 	}
-	if roleBinding.Namespace != namespace &&
-		roleBinding.Subjects[0].Name != namespace &&
-		roleBinding.RoleRef.Name != "default-role" {
+
+	if !reflect.DeepEqual(roleBinding, rbac.GenerateRoleBinding(namespace, namespace)) {
 		t.Errorf("Created rolebinding has incorrect parameters: %v", roleBinding)
 	}
 
@@ -221,11 +252,11 @@ func testRBAC(t *testing.T, client *fake.Clientset, namespace string) {
 	if err != nil {
 		t.Fatalf("Failed get ServiceAccount roleBindings: %v", err)
 	}
-	if saroleBinding.Namespace != namespace &&
-		saroleBinding.Subjects[0].Name != namespace &&
-		saroleBinding.RoleRef.Name != "default-role" {
-		t.Errorf("Created service account rolebinding has incorrect parameters: %v", saroleBinding)
+
+	if !reflect.DeepEqual(saroleBinding, rbac.GenerateServiceAccountRoleBinding(namespace, namespace)) {
+		t.Errorf("Created rolebinding has incorrect parameters: %v", saroleBinding)
 	}
+
 }
 
 func TestSyncRBAC(t *testing.T) {
@@ -275,20 +306,14 @@ func TestOnAdd(t *testing.T) {
 				tenant, ok := kubeCRDClient.Tenants["default"]
 				if !ok {
 					t.Errorf("Expected default tenant to be created, got none")
-				} else if tenant.Name != util.SystemTenant &&
-					tenant.Namespace != util.SystemTenant &&
-					tenant.Spec.UserName != util.SystemTenant &&
-					tenant.Spec.Password != util.SystemPassword {
+				} else if !reflect.DeepEqual(tenant, systemTenant) {
 					t.Errorf("The created default tenant has incorrect parameters: %v", tenant)
 				}
 
 				network, ok := kubeCRDClient.Networks["default"]
 				if !ok {
 					t.Errorf("Expected default network to be created, got none")
-				} else if network.Name != util.SystemNetwork &&
-					network.Namespace != util.SystemNetwork &&
-					network.Spec.CIDR != userCIDR &&
-					network.Spec.Gateway != useruserGateway {
+				} else if !reflect.DeepEqual(network, systemNetwork) {
 					t.Errorf("The created default network has incorrect parameters: %v", network)
 				}
 
@@ -313,20 +338,14 @@ func TestOnAdd(t *testing.T) {
 				tenant, ok := kubeCRDClient.Tenants["default"]
 				if !ok {
 					t.Errorf("Expected default tenant to be created, got none")
-				} else if tenant.Name != util.SystemTenant &&
-					tenant.Namespace != util.SystemTenant &&
-					tenant.Spec.UserName != util.SystemTenant &&
-					tenant.Spec.Password != util.SystemPassword {
+				} else if !reflect.DeepEqual(tenant, systemTenant) {
 					t.Errorf("The created default tenant has incorrect parameters: %v", tenant)
 				}
 
 				network, ok := kubeCRDClient.Networks["default"]
 				if !ok {
 					t.Errorf("Expected default network to be created, got none")
-				} else if network.Name != util.SystemNetwork &&
-					network.Namespace != util.SystemNetwork &&
-					network.Spec.CIDR != userCIDR &&
-					network.Spec.Gateway != useruserGateway {
+				} else if !reflect.DeepEqual(network, systemNetwork) {
 					t.Errorf("The created default network has incorrect parameters: %v", network)
 				}
 
@@ -351,20 +370,14 @@ func TestOnAdd(t *testing.T) {
 				tenant, ok := kubeCRDClient.Tenants["default"]
 				if !ok {
 					t.Errorf("Expected default tenant to be created, got none")
-				} else if tenant.Name != util.SystemTenant &&
-					tenant.Namespace != util.SystemTenant &&
-					tenant.Spec.UserName != util.SystemTenant &&
-					tenant.Spec.Password != util.SystemPassword {
+				} else if !reflect.DeepEqual(tenant, systemTenant) {
 					t.Errorf("The created default tenant has incorrect parameters: %v", tenant)
 				}
 
 				network, ok := kubeCRDClient.Networks["default"]
 				if !ok {
 					t.Errorf("Expected default network to be created, got none")
-				} else if network.Name != util.SystemNetwork &&
-					network.Namespace != util.SystemNetwork &&
-					network.Spec.CIDR != userCIDR &&
-					network.Spec.Gateway != useruserGateway {
+				} else if !reflect.DeepEqual(network, systemNetwork) {
 					t.Errorf("The created default network has incorrect parameters: %v", network)
 				}
 
@@ -390,31 +403,22 @@ func TestOnAdd(t *testing.T) {
 				tenant, ok := kubeCRDClient.Tenants["default"]
 				if !ok {
 					t.Errorf("Expected default tenant to be created, got none")
-				} else if tenant.Name != util.SystemTenant &&
-					tenant.Namespace != util.SystemTenant &&
-					tenant.Spec.UserName != util.SystemTenant &&
-					tenant.Spec.Password != util.SystemPassword {
+				} else if !reflect.DeepEqual(tenant, systemTenant) {
 					t.Errorf("The created default tenant has incorrect parameters: %v", tenant)
 				}
 
 				network, ok := kubeCRDClient.Networks["default"]
 				if !ok {
 					t.Errorf("Expected default network to be created, got none")
-				} else if network.Name != util.SystemNetwork &&
-					network.Namespace != util.SystemNetwork &&
-					network.Spec.CIDR != userCIDR &&
-					network.Spec.Gateway != useruserGateway {
+				} else if !reflect.DeepEqual(network, systemNetwork) {
 					t.Errorf("The created default network has incorrect parameters: %v", network)
 				}
 
 				network, ok = kubeCRDClient.Networks[namespace]
 				if !ok {
 					t.Errorf("Expected %s network to be created, got none", namespace)
-				} else if network.Name != namespace &&
-					network.Namespace != namespace &&
-					network.Spec.CIDR != userCIDR &&
-					network.Spec.Gateway != useruserGateway {
-					t.Errorf("The created default network has incorrect parameters: %v", network)
+				} else if !reflect.DeepEqual(network, newNetworkForTenant(namespace)) {
+					t.Errorf("The created %s network has incorrect parameters: %v", namespace, network)
 				}
 
 				testRBAC(t, client, namespace)

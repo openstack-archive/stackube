@@ -8,19 +8,23 @@ CentOS. These instructions assume you're already installed git, golang and pytho
 Design Tips
 =========
 
-The Stackube project is very simple. The main part of it is a stackube-controller, which use Kubernetes Customized Resource Definition (CRD, previous TPR) to:
+The Stackube project is very simple. The main part of it is a ``stackube-controller``, which use Kubernetes ``Customized Resource Definition (CRD, previous TPR)`` to:
 
 1. Manage tenants based on namespace change in k8s
 2. Manage RBAC based on namespace change in k8s
 3. Manage networks based on tenants change in k8s
 
-The tenant is a CRD which maps to Keystone tenant, the network is a CRD which maps to Neutron network. We also have a kubestack binary which is the CNI plug-in for Neutron.
+The tenant is a CRD which maps to Keystone tenant, the network is a CRD which maps to Neutron network. We also have a ``kubestack`` binary which is the CNI plug-in for Neutron.
 
-Also, Stackube has it's own stackube-proxy to replace kube-proxy because network in Stackube is L2 isolated, so we need a multi-tenant version kube-proxy here.
+Also, Stackube has it's own ``stackube-proxy`` to replace ``kube-proxy`` because network in Stackube is L2 isolated, so we need a multi-tenant version ``kube-proxy`` here.
 
-We also replaced kube-dns in k8s for the same reason: we need to have a kube-dns running in every namespace instead of a global DNS server because namespaces are isolated.
+We also replaced ``kube-dns`` in k8s for the same reason: we need to have a ``kube-dns`` running in every namespace instead of a global DNS server because namespaces are isolated.
 
-You can see that:  Stackube cluster = upstream Kubernetes + several our own add-ons + standalone OpenStack components.
+You can see that:  
+
+::
+
+Stackube cluster = upstream Kubernetes + several our own add-ons + standalone OpenStack components.
 
 Please note: Cinder RBD based block device as volume is implemented in https://github.com/kubernetes/frakti, you need to contribute there if you have any idea and build a new stackube/flex-volume Docker image for Stackube to use.
 
@@ -64,20 +68,20 @@ If you deployed Stackube by following official guide, you can skip this part.
 
 But if not, these steps below are needed to make sure your Stackube cluster work.
 
-Please note the following parts suppose you have already deployed an environment of OpenStack and Kubernetes on same baremetal host. And don't forget to setup `--experimental-keystone-url` for kube-apiserver, e.g.
+Please note the following parts suppose you have already deployed an environment of OpenStack and Kubernetes on same baremetal host. And don't forget to setup ``--experimental-keystone-url`` for ``kube-apiserver``, e.g.
 
 ::
 
     kube-apiserver --experimental-keystone-url=https://192.168.128.66:5000/v2.0 ...
 
-Remove kube-dns deployment and kube-proxy daemonset if you have already running them.
+Remove ``kube-dns`` deployment and ``kube-proxy`` daemonset if you have already running them.
 
 ::
 
   kubectl -n kube-system delete deployment kube-dns
   kubectl -n kube-system delete daemonset kube-proxy
 
-If you have also configured a CNI network plugin, you should also remove it togather with CNI network config.
+If you have also configured a CNI network plugin, you should also remove it together with CNI network config.
 
 ::
 

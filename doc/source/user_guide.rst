@@ -5,7 +5,7 @@ Stackube User Guide
 Tenant and Network Management
 =============================
 
-In this part, we will introduce tenant management and networking in Stackube. The tenant, which is 1:1 mapped with k8s namespace, is managed by using k8s CRD (previous TPR) to interact with Keystone. And the tenant is also 1:1 mapped with a network automatically, which is also implemented by CRD with standalone Neutron.
+In this part, we will introduce tenant management and networking in Stackube. The tenant, which is ``1:1`` mapped with k8s namespace, is managed by using k8s CRD (previous TPR) to interact with Keystone. And the tenant is also ``1:1`` mapped with a network automatically, which is also implemented by CRD with standalone Neutron.
 
 1. Create a new tenant
 
@@ -61,7 +61,7 @@ In this part, we will introduce tenant management and networking in Stackube. Th
   +--------------------------------------+----------------------+----------------------------------+----------------------------------------------------------+
   | 421d913a-a269-408a-9765-2360e202ad5b | kube-test-test       | 915b36add7e34018b7241ab63a193530 | bb446a53-de4d-4546-81fc-8736a9a88e3a 10.244.0.0/16       |
 
-4. Check the kube-dns pods created in the new namespace.
+4. Check the ``kube-dns`` pods created in the new namespace.
 
 ::
 
@@ -168,9 +168,9 @@ Stackube is a standard upstream Kubernetes cluster, so any type of `Kubernetes v
       server: 10.244.1.4
       path: "/exports"
 
-Please note since Stackube is a baremetal k8s cluster, cloud provider based volume like GCE, AWS etc is not supported by default.
+Please note since Stackube is a baremetal k8s cluster, cloud provider based volume are not supported by default.
 
-But unless you are using emptyDir or hostPath, we will recommend always you the "Cinder RBD based block device as volume" described below in Stackube, this will bring you much higher performance.
+But unless you are using ``emptyDir`` or ``hostPath``, we will recommend always you the ``Cinder RBD based block device as volume`` described below in Stackube, this will bring you much higher performance.
 
 ==================================
 Cinder RBD based block device as volume
@@ -207,11 +207,11 @@ In Stackube, we use a flexvolume to directly use Cinder RBD based block device a
         options:
           volumeID: daa7b4e6-1792-462d-ad47-78e900fed429
 
-Please note the name of flexvolume is: "cinder/flexvolume_driver". Users are expected to provide a valid volume ID created with Cinder beforehand. Then a related RBD device will be attached to the VM-based Pod.
+Please note the name of flexvolume is: ``cinder/flexvolume_driver``. Users are expected to provide a valid volume ID created with Cinder beforehand. Then a related RBD device will be attached to the VM-based Pod.
 
-If your cluster is installed by stackube/devstack or following other stackube official guide, a /etc/kubernetes/cinder.conf file will be generated automatically on every node. 
+If your cluster is installed by ``stackube/devstack`` or following other stackube official guide, a ``/etc/kubernetes/cinder.conf`` file will be generated automatically on every node. 
 
-Otherwise, users are expected to write a /etc/kubernetes/cinder.conf on every node. The contents is like:
+Otherwise, users are expected to write a ``/etc/kubernetes/cinder.conf`` on every node. The contents is like:
 
 ::
 
@@ -225,4 +225,4 @@ Otherwise, users are expected to write a /etc/kubernetes/cinder.conf on every no
   keyring = _KEYRING_
 
 
-and also, users need to make sure flexvolume_driver binary is in /usr/libexec/kubernetes/kubelet-plugins/volume/exec/cinder~flexvolume_driver/ of every node.
+and also, users need to make sure flexvolume_driver binary is in ``/usr/libexec/kubernetes/kubelet-plugins/volume/exec/cinder~flexvolume_driver/`` of every node.

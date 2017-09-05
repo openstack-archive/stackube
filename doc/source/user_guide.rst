@@ -182,6 +182,14 @@ On the other hand, the hypervisor Pod make it possible to mount block device dir
 
 In Stackube, we use a flexvolume to directly use Cinder RBD based block device as Pod volume. The usage is very simple:
 
+1. Create a Cinder volume (skip if you want to use a existing Cinder volume).
+
+::
+
+  $ cinder create --name volume 1
+
+2. Create a Pod claim to use this Cinder volume.
+
 ::
 
   apiVersion: v1
@@ -207,11 +215,15 @@ In Stackube, we use a flexvolume to directly use Cinder RBD based block device a
         options:
           volumeID: daa7b4e6-1792-462d-ad47-78e900fed429
 
-Please note the name of flexvolume is: ``cinder/flexvolume_driver``. Users are expected to provide a valid volume ID created with Cinder beforehand. Then a related RBD device will be attached to the VM-based Pod.
+Please note the name of flexvolume should be: ``cinder/flexvolume_driver``. 
 
-If your cluster is installed by ``stackube/devstack`` or following other stackube official guide, a ``/etc/kubernetes/cinder.conf`` file will be generated automatically on every node. 
+The ``daa7b4e6-1792-462d-ad47-78e900fed429`` is either volume ID created with Cinder or any existing available Cinder volume ID. After this yaml is applied, the related RBD device will be attached to the VM-based Pod after this is created.
 
-Otherwise, users are expected to write a ``/etc/kubernetes/cinder.conf`` on every node. The contents is like:
+========
+Others
+========
+
+If your cluster is installed by ``stackube/devstack`` or following other stackube official guide, a ``/etc/kubernetes/cinder.conf`` file will be generated automatically on every node. Otherwise, you are expected to create a ``/etc/kubernetes/cinder.conf`` on every node. The contents is like:
 
 ::
 

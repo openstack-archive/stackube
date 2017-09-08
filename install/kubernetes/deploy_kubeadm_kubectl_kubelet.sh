@@ -42,7 +42,7 @@ gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg
        https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
 EOF
 
-yum install -y kubelet-1.7.4-0 kubeadm-1.7.4-0 kubectl-1.7.4-0
+yum install -y kubelet-1.7.5-0 kubeadm-1.7.5-0 kubectl-1.7.5-0
 
 # configure_kubelet
 unitFile='/etc/systemd/system/kubelet.service.d/10-kubeadm.conf'

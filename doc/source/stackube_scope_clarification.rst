@@ -56,7 +56,7 @@ What’s the difference between other plugin projects?
 
 #. Kuryr
 
-   * This is a Neutron network plugin for Docker network model, which is not directly supported in Kubernetes. Kuryr can provide CNI interface, but Stackube also requires tenant aware network management which is not included in Kuryr.
+   * This is a Neutron network plugin for Docker network model, which is not directly supported in Kubernetes. Kuryr can provide CNI interface, but Stackube also requires tenant aware network management which is not included in Kuryr. We will evaluate and propose our multi-tenant model to kuryr-kubernetes as a long term effort, then we can move to use kuryr-kubernetes as the default network plugin.
 
 #. Fuxi
 

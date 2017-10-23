@@ -503,7 +503,7 @@ func (os *Client) getListenersByLoadBalancerID(id string) ([]listeners.Listener,
 }
 
 func (os *Client) getLoadBalanceByName(name string) (*loadbalancers.LoadBalancer, error) {
-	var lb *loadbalancers.LoadBalancer
+	loadbalancerList := make([]loadbalancers.LoadBalancer, 0, 1)
 
 	opts := loadbalancers.ListOpts{Name: name}
 	pager := loadbalancers.List(os.Network, opts)
@@ -513,25 +513,26 @@ func (os *Client) getLoadBalanceByName(name string) (*loadbalancers.LoadBalancer
 			return false, err
 		}
 
-		switch len(lbs) {
-		case 0:
-			return false, ErrNotFound
-		case 1:
-			lb = &lbs[0]
-			return true, nil
-		default:
+		loadbalancerList = append(loadbalancerList, lbs...)
+		if len(loadbalancerList) > 1 {
 			return false, ErrMultipleResults
 		}
+		return true, nil
 	})
 	if err != nil {
+		if isNotFound(err) {
+			return nil, ErrNotFound
+		}
 		return nil, err
 	}
 
-	if lb == nil {
+	if len(loadbalancerList) == 0 {
 		return nil, ErrNotFound
+	} else if len(loadbalancerList) > 1 {
+		return nil, ErrMultipleResults
 	}
 
-	return lb, nil
+	return &loadbalancerList[0], nil
 }
 
 func (os *Client) getPoolByListenerID(loadbalancerID string, listenerID string) (*pools.Pool, error) {
@@ -572,7 +573,7 @@ func (os *Client) getPoolByListenerID(loadbalancerID string, listenerID string) 
 
 // getPoolByName gets openstack pool by name.
 func (os *Client) getPoolByName(name string) (*pools.Pool, error) {
-	var pool *pools.Pool
+	poolList := make([]pools.Pool, 0, 1)
 
 	opts := pools.ListOpts{Name: name}
 	pager := pools.List(os.Network, opts)
@@ -582,57 +583,59 @@ func (os *Client) getPoolByName(name string) (*pools.Pool, error) {
 			return false, err
 		}
 
-		switch len(ps) {
-		case 0:
-			return false, ErrNotFound
-		case 1:
-			pool = &ps[0]
-			return true, nil
-		default:
+		poolList = append(poolList, ps...)
+		if len(poolList) > 1 {
 			return false, ErrMultipleResults
 		}
+		return true, nil
 	})
 	if err != nil {
+		if isNotFound(err) {
+			return nil, ErrNotFound
+		}
 		return nil, err
 	}
 
-	if pool == nil {
+	if len(poolList) == 0 {
 		return nil, ErrNotFound
+	} else if len(poolList) > 1 {
+		return nil, ErrMultipleResults
 	}
 
-	return pool, nil
+	return &poolList[0], nil
 }
 
 func (os *Client) getListenerByName(name string) (*listeners.Listener, error) {
-	var listener *listeners.Listener
+	listenerList := make([]listeners.Listener, 0, 1)
 
 	opts := listeners.ListOpts{Name: name}
 	pager := listeners.List(os.Network, opts)
 	err := pager.EachPage(func(page pagination.Page) (bool, error) {
-		lists, err := listeners.ExtractListeners(page)
+		listeners, err := listeners.ExtractListeners(page)
 		if err != nil {
 			return false, err
 		}
 
-		switch len(lists) {
-		case 0:
-			return false, ErrNotFound
-		case 1:
-			listener = &lists[0]
-			return true, nil
-		default:
+		listenerList = append(listenerList, listeners...)
+		if len(listenerList) > 1 {
 			return false, ErrMultipleResults
 		}
+		return true, nil
 	})
 	if err != nil {
+		if isNotFound(err) {
+			return nil, ErrNotFound
+		}
 		return nil, err
 	}
 
-	if listener == nil {
+	if len(listenerList) == 0 {
 		return nil, ErrNotFound
+	} else if len(listenerList) > 1 {
+		return nil, ErrMultipleResults
 	}
 
-	return listener, nil
+	return &listenerList[0], nil
 }
 
 func (os *Client) getMembersByPoolID(id string) ([]pools.Member, error) {

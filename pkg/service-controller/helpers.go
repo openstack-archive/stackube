@@ -31,5 +31,5 @@ func buildServiceName(service *v1.Service) string {
 }
 
 func buildLoadBalancerName(service *v1.Service) string {
-	return fmt.Sprintf("%s_%s_%s", lbPrefix, service.Namespace, service.Name)
+	return fmt.Sprintf("%s_%s_%s_%s", lbPrefix, service.Namespace, service.Name, service.UID)
 }

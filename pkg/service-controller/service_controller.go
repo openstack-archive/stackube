@@ -210,17 +210,20 @@ func (s *ServiceController) processServiceUpdate(cachedService *cachedService, s
 	// cache the service, we need the info for service deletion
 	cachedService.state = service
 	err, retry := s.createLoadBalancerIfNeeded(key, service)
+	var retryToReturn time.Duration
 	if err != nil {
 		message := "Error creating load balancer"
 		if retry {
 			message += " (will retry): "
+			retryToReturn = cachedService.nextRetryDelay()
 		} else {
 			message += " (will not retry): "
+			retryToReturn = doNotRetry
 		}
 		message += err.Error()
 		glog.V(3).Infof("Create service %q failed: %v, message: %q", buildServiceName(service), err, message)
 
-		return err, cachedService.nextRetryDelay()
+		return err, retryToReturn
 	}
 	// Always update the cache upon success.
 	// NOTE: Since we update the cached service if and only if we successfully

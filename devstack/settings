@@ -1,11 +1,13 @@
 STACKUBE_HOME=${STACKUBE_HOME:-$DEST/stackube}
+# Kubernetes version, default to latest stable
+KUBE_VERSION=${KUBE_VERSION:-"1.8.2"}
 # Kubernetes master IP, should set to master IP for minions
 KUBERNETES_MASTER_IP=${KUBERNETES_MASTER_IP:-${SERVICE_HOST}}
 KUBERNETES_MASTER_PORT=${KUBERNETES_MASTER_PORT:-6443}
 # Kubeadm token, only for minions
 KUBEADM_TOKEN=${KUBEADM_TOKEN:-""}
 # The version of frakti
-FRAKTI_VERSION=${FRAKTI_VERSION:-"v1.0"}
+FRAKTI_VERSION=${FRAKTI_VERSION:-"v1.1.1"}
 # Kubernetes CLUSTER CIDR
 CLUSTER_CIDR=${CLUSTER_CIDR:-"10.244.0.0/16"}
 CLUSTER_GATEWAY=${CLUSTER_GATEWAY:-"10.244.0.1"}

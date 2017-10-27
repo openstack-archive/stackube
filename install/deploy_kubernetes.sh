@@ -33,6 +33,7 @@ source $(readlink -f $1)
 [ "${COMPUTE_NODES_PRIVATE_IP}" ]
 
 
+# TODO(harry): how to merge this with devstack/settings
 export KUBERNETES_API_PUBLIC_IP="${CONTROL_NODE_PUBLIC_IP}"
 export KUBERNETES_API_PRIVATE_IP="${CONTROL_NODE_PRIVATE_IP}"
 export KEYSTONE_URL="https://${CONTROL_NODE_PRIVATE_IP}:5001/v2.0"
@@ -40,7 +41,15 @@ export KEYSTONE_ADMIN_URL="https://${CONTROL_NODE_PRIVATE_IP}:35358/v2.0"
 export CLUSTER_CIDR="10.244.0.0/16"
 export CLUSTER_GATEWAY="10.244.0.1"
 export CONTAINER_CIDR="10.244.1.0/24"
-export FRAKTI_VERSION="v1.0"
+export FRAKTI_VERSION="v1.1.1"
+
+# Default release of Kubernetes is latest stable
+KUBE_RELEASE=${KUBE_RELEASE:-"stable-1.8"}
+# Get stable version from release URL
+version=`curl -sSL dl.k8s.io/release/${KUBE_RELEASE}.txt`
+# Change v1.8.2 to 1.8.2
+export KUBE_VERSION=${version#"v"}
+
 
 
 ########## control & compute nodes ##########

@@ -15,6 +15,13 @@
 
 STACKUBE_ROOT=$(dirname "${BASH_SOURCE}")
 
+# Default release of Kubernetes is latest stable
+KUBE_RELEASE=${KUBE_RELEASE:-"stable-1.8"}
+# Get stable version from release URL
+version=`curl -sSL dl.k8s.io/release/${KUBE_RELEASE}.txt`
+# Change v1.8.2 to 1.8.2
+export KUBE_VERSION=${version#"v"}
+
 function install_docker {
     if is_ubuntu; then
         sudo apt-get update
@@ -69,7 +76,6 @@ ExecStart=/usr/bin/frakti --v=3 \
           --logtostderr=false \
           --cgroup-driver=${cgroup_driver} \
           --listen=/var/run/frakti.sock \
-          --streaming-server-addr=%H \
           --hyper-endpoint=127.0.0.1:22318
 MountFlags=shared
 TasksMax=8192
@@ -97,7 +103,7 @@ gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg
 EOF'
         sudo setenforce 0
         sudo sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/selinux/config
-        sudo yum install -y kubelet-1.7.5-0 kubeadm-1.7.5-0 kubectl-1.7.5-0
+        sudo yum install -y kubelet-${KUBE_VERSION}-0 kubeadm-${KUBE_VERSION}-0 kubectl-${KUBE_VERSION}-0
     elif is_ubuntu; then
         sudo apt-get update && sudo apt-get install -y apt-transport-https
         sudo curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
@@ -105,7 +111,7 @@ EOF'
 deb http://apt.kubernetes.io/ kubernetes-xenial main
 EOF'
         sudo apt-get update
-        sudo apt-get install -y kubelet=1.7.5-00 kubeadm=1.7.5-00 kubectl=1.7.5-00
+        sudo apt-get install -y --allow-downgrades kubelet=${KUBE_VERSION}-00 kubeadm=${KUBE_VERSION}-00 kubectl=${KUBE_VERSION}-00
     else
         exit_distro_not_supported
     fi

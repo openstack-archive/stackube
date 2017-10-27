@@ -13,12 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 programDir=`dirname $0`
 programDir=$(readlink -f $programDir)
 parentDir="$(dirname $programDir)"
 programDirBaseName=$(basename $programDir)
-
 
 setenforce 0
 sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/selinux/config
@@ -42,7 +40,7 @@ gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg
        https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
 EOF
 
-yum install -y kubelet-1.7.5-0 kubeadm-1.7.5-0 kubectl-1.7.5-0
+yum install -y --allow-downgrades kubelet-${KUBE_VERSION}-0 kubeadm-${KUBE_VERSION}-0 kubectl-${KUBE_VERSION}-0
 
 # configure_kubelet
 unitFile='/etc/systemd/system/kubelet.service.d/10-kubeadm.conf'

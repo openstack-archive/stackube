@@ -1,0 +1,8 @@
+Workflow+1: resouer <harryz@hyper.sh>
+Code-Review+2: resouer <harryz@hyper.sh>
+Verified+2: Zuul
+Submitted-by: Zuul
+Submitted-at: Sat, 28 Oct 2017 15:24:07 +0000
+Reviewed-on: https://review.openstack.org/516018
+Project: openstack/stackube
+Branch: refs/heads/master

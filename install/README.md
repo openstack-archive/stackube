@@ -1,4 +1,4 @@
-# Setting Up A Multi-nodes Stackube (Without HA For Now)
+# Setting Up A Multi-nodes Stackube
 
 This page describes how to setup a multi-nodes cluster of Stackube.
 

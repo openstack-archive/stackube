@@ -24,7 +24,7 @@ Components
 
 1. Standard OpenStack Compoents
 
-* OpenStack Keytone
+* OpenStack Keystone
 * OpenStack Neutron
 * OpenStack Cinder
 

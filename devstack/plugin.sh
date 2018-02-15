@@ -62,7 +62,7 @@ function install_frakti {
     if command -v /usr/bin/frakti > /dev/null 2>&1; then
         sudo rm -f /usr/bin/frakti
     fi
-    sudo curl -sSL https://github.com/kubernetes/frakti/releases/download/${FRAKTI_VERSION}/frakti -o /usr/bin/frakti
+    curl -sSL https://github.com/kubernetes/frakti/releases/download/${FRAKTI_VERSION}/frakti -o /usr/bin/frakti
     sudo chmod +x /usr/bin/frakti
     cgroup_driver=$(sudo docker info | awk '/Cgroup Driver/{print $3}')
     sudo sh -c "cat > /lib/systemd/system/frakti.service <<EOF
@@ -106,7 +106,7 @@ EOF'
         sudo yum install -y kubelet-${KUBE_VERSION}-0 kubeadm-${KUBE_VERSION}-0 kubectl-${KUBE_VERSION}-0
     elif is_ubuntu; then
         sudo apt-get update && sudo apt-get install -y apt-transport-https
-        sudo curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+        curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
         sudo sh -c 'cat > /etc/apt/sources.list.d/kubernetes.list <<EOF
 deb http://apt.kubernetes.io/ kubernetes-xenial main
 EOF'
@@ -120,7 +120,7 @@ EOF'
 function install_master {
     sed -i "s#KEYSTONE_HOST#${SERVICE_HOST}#g" ${STACKUBE_ROOT}/kubeadm.yaml
     sed -i "s#CLUSTER_CIDR#${CLUSTER_CIDR}#g" ${STACKUBE_ROOT}/kubeadm.yaml
-    sudo kubeadm init --config ${STACKUBE_ROOT}/kubeadm.yaml
+    sudo -E kubeadm init --config ${STACKUBE_ROOT}/kubeadm.yaml
     # Enable schedule pods on the master for testing.
     sudo cp /etc/kubernetes/admin.conf $HOME/
     sudo chown $(id -u):$(id -g) $HOME/admin.conf
@@ -174,7 +174,7 @@ function install_node {
         echo "KUBEADM_TOKEN must be set for node"
         exit 1
     fi
-    sudo kubeadm join --token "${KUBEADM_TOKEN}" ${KUBERNETES_MASTER_IP}:${KUBERNETES_MASTER_PORT}
+    sudo -E kubeadm join --token "${KUBEADM_TOKEN}" ${KUBERNETES_MASTER_IP}:${KUBERNETES_MASTER_PORT}
 }
 
 function configure_kubelet {

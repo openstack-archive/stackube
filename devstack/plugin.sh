@@ -16,7 +16,7 @@
 STACKUBE_ROOT=$(dirname "${BASH_SOURCE}")
 
 # Default release of Kubernetes is latest stable
-KUBE_RELEASE=${KUBE_RELEASE:-"stable-1.8"}
+KUBE_RELEASE=${KUBE_RELEASE:-"stable"}
 # Get stable version from release URL
 version=`curl -sSL dl.k8s.io/release/${KUBE_RELEASE}.txt`
 # Change v1.8.2 to 1.8.2

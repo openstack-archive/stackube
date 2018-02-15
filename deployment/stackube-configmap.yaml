@@ -23,6 +23,7 @@ data:
   username: "admin"
   password: "password"
   tenant-name: "admin"
+  domain-id: "default"
   region: "RegionOne"
   ext-net-id: "<Your-external-network-id>"
   plugin-name: "ovs"

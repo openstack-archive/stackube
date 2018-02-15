@@ -146,10 +146,11 @@ metadata:
   name: stackube-config
   namespace: kube-system
 data:
-  auth-url: "https://${SERVICE_HOST}/identity_admin/v2.0"
+  auth-url: "https://${SERVICE_HOST}/identity/v3"
   username: "admin"
   password: "${ADMIN_PASSWORD}"
   tenant-name: "admin"
+  domain-id: "default"
   region: "RegionOne"
   ext-net-id: "${public_network}"
   plugin-name: "ovs"

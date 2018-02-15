@@ -47,7 +47,7 @@ fi
 
 TMP_CONF='/kubestack.conf.tmp'
 # Check environment variables before any real actions.
-for i in 'AUTH_URL' 'USERNAME' 'PASSWORD' 'TENANT_NAME' 'REGION' 'EXT_NET_ID' 'PLUGIN_NAME' 'INTEGRATION_BRIDGE';do
+for i in 'AUTH_URL' 'USERNAME' 'PASSWORD' 'TENANT_NAME' 'DOMAIN_ID' 'REGION' 'EXT_NET_ID' 'PLUGIN_NAME' 'INTEGRATION_BRIDGE';do
 	if [ "${!i}" ];then
 		echo "environment variable $i = ${!i}"
 	else
@@ -61,6 +61,7 @@ sed -i s~_AUTH_URL_~${AUTH_URL:-}~g $TMP_CONF
 sed -i s/_USERNAME_/${USERNAME:-}/g $TMP_CONF
 sed -i s/_PASSWORD_/${PASSWORD:-}/g $TMP_CONF
 sed -i s/_TENANT_NAME_/${TENANT_NAME:-}/g $TMP_CONF
+sed -i s/_DOMAIN_ID_/${DOMAIN_ID:-}/g $TMP_CONF
 sed -i s/_REGION_/${REGION:-}/g $TMP_CONF
 sed -i s/_EXT_NET_ID_/${EXT_NET_ID:-}/g $TMP_CONF
 sed -i s/_PLUGIN_NAME_/${PLUGIN_NAME:-}/g $TMP_CONF

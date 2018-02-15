@@ -136,6 +136,7 @@ type Config struct {
 		AuthUrl    string `gcfg:"auth-url"`
 		Username   string `gcfg:"username"`
 		Password   string `gcfg:"password"`
+		DomainID   string `gcfg:"domain-id"`
 		TenantName string `gcfg:"tenant-name"`
 		Region     string `gcfg:"region"`
 		ExtNetID   string `gcfg:"ext-net-id"`
@@ -148,6 +149,7 @@ func toAuthOptions(cfg Config) gophercloud.AuthOptions {
 		IdentityEndpoint: cfg.Global.AuthUrl,
 		Username:         cfg.Global.Username,
 		Password:         cfg.Global.Password,
+		DomainID:         cfg.Global.DomainID,
 		TenantName:       cfg.Global.TenantName,
 		AllowReauth:      true,
 	}
@@ -172,7 +174,7 @@ func NewClient(config string, kubeConfig string) (Interface, error) {
 		return nil, err
 	}
 
-	identity, err := openstack.NewIdentityV2(provider, gophercloud.EndpointOpts{
+	identity, err := openstack.NewIdentityV3(provider, gophercloud.EndpointOpts{
 		Availability: gophercloud.AvailabilityAdmin,
 	})
 	if err != nil {

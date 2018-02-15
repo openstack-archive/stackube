@@ -84,6 +84,12 @@ spec:
                 configMapKeyRef:
                   name: stackube-config
                   key: tenant-name
+            # The domain id for openstack authentication.
+            - name: DOMAIN_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: stackube-config
+                  key: domain-id
             # The region for openstack authentication.
             - name: REGION
               valueFrom:

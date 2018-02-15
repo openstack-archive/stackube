@@ -3,6 +3,7 @@ auth-url = _AUTH_URL_
 username = _USERNAME_
 password = _PASSWORD_
 tenant-name = _TENANT_NAME_
+domain-id = _DOMAIN_ID_
 region = _REGION_
 ext-net-id = _EXT_NET_ID_
 [Plugin]

@@ -35,7 +35,7 @@ import (
 const (
 	defaultMonitorDelay   = 10
 	defaultMonitorRetry   = 3
-	defaultMonotorTimeout = 3
+	defaultMonitorTimeout = 3
 
 	// loadbalancerActive* is configuration of exponential backoff for
 	// going into ACTIVE loadbalancer provisioning status. Starting with 1
@@ -216,7 +216,7 @@ func (os *Client) EnsureLoadBalancer(lb *LoadBalancer) (*LoadBalancerStatus, err
 			PoolID:     pool.ID,
 			TenantID:   lb.TenantID,
 			Delay:      defaultMonitorDelay,
-			Timeout:    defaultMonotorTimeout,
+			Timeout:    defaultMonitorTimeout,
 			MaxRetries: defaultMonitorRetry,
 		}).Extract()
 		if err != nil {

@@ -35,7 +35,7 @@ import (
 const (
 	defaultMonitorDelay   = 10
 	defaultMonitorRetry   = 3
-	defaultMonotorTimeout = 3
+	defaultMonitorTimeout = 3
 
 	// loadbalancerActive* is configuration of exponential backoff for
 	// going into ACTIVE loadbalancer provisioning status. Starting with 1

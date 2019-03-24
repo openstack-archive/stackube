@@ -10,7 +10,7 @@ Getting the code
 Grab the code:
 ::
 
-  git clone git://git.openstack.org/openstack/stackube
+  git clone https://git.openstack.org/openstack/stackube
 
 ==================================
 Spawn up Kubernetes and OpenStack

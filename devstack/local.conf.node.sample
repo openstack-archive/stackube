@@ -25,7 +25,7 @@ KUBERNETES_MASTER_IP=${SERVICE_HOST}
 # sudo kubeadm token list | awk '/kubeadm/{print $1}'
 KUBEADM_TOKEN="token"
 CONTAINER_CIDR="10.244.2.0/24"
-enable_plugin stackube git://git.openstack.org/openstack/stackube
+enable_plugin stackube https://git.openstack.org/openstack/stackube
 enable_service stackube
 # Enable kubernetes node components
 enable_service kubernetes_node
